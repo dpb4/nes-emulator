@@ -1,2 +1,2 @@
 pub mod instructions;
-pub use instrucions as ins;
+pub use instructions as ins;

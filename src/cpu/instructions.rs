@@ -63,10 +63,10 @@ pub enum AddressingMode {
     // added to register `Y` to get actual target address
     IndirectIndexed, // II
 }
-use addressingMode::*;
+use AddressingMode::*;
 
 pub struct Instruction {
-    pub name: &str,
+    pub name: &'static str,
     pub opcode: u8,
     pub mode: AddressingMode,
     pub bytes: u8,
@@ -74,7 +74,13 @@ pub struct Instruction {
 }
 
 impl Instruction {
-    pub fn new(name: &str, opcode: u8, mode: AddressingMode, bytes: u8, cycles: u8) -> Self {
+    pub const fn new(
+        name: &'static str,
+        opcode: u8,
+        mode: AddressingMode,
+        bytes: u8,
+        cycles: u8,
+    ) -> Self {
         Instruction {
             name,
             opcode,
@@ -183,7 +189,7 @@ const LSR_A: Instruction = Instruction::new("LSR", 0x4e, Absolute, 3, 6);
 const LSR_AX: Instruction = Instruction::new("LSR", 0x5e, AbsoluteX, 3, 7);
 
 // NOP: no operation
-const NOP: Instruction = Instruction::new("NOP", 0xea, Implied, 1, 2);
+const NOP: Instruction = Instruction::new("NOP", 0xea, Implicit, 1, 2);
 
 // ORA: logical or
 const ORA_IM: Instruction = Instruction::new("ORA", 0x09, Immediate, 2, 2);
@@ -196,16 +202,16 @@ const ORA_IX: Instruction = Instruction::new("ORA", 0x01, Indirect, 2, 6);
 const ORA_IY: Instruction = Instruction::new("ORA", 0x11, IndexedIndirect, 2, 5); //
 
 // PHA: push accumulator
-const PHA: Instruction = Instruction::new("PHA", 0x48, Implied, 1, 3);
+const PHA: Instruction = Instruction::new("PHA", 0x48, Implicit, 1, 3);
 
 // PHP: push processor status
-const PHP: Instruction = Instruction::new("PHP", 0x08, Implied, 1, 3);
+const PHP: Instruction = Instruction::new("PHP", 0x08, Implicit, 1, 3);
 
 // PLA: pull accumulator
-const PLA: Instruction = Instruction::new("PLA", 0x68, Implied, 1, 4);
+const PLA: Instruction = Instruction::new("PLA", 0x68, Implicit, 1, 4);
 
 // PLP: pull processor status
-const PLP: Instruction = Instruction::new("PLP", 0x28, Implied, 1, 4);
+const PLP: Instruction = Instruction::new("PLP", 0x28, Implicit, 1, 4);
 
 // ROL: rotate left
 const ROL_AC: Instruction = Instruction::new("ROL", 0x2a, Accumulator, 1, 2);
@@ -222,10 +228,10 @@ const ROR_A: Instruction = Instruction::new("ROR", 0x6e, Absolute, 3, 6);
 const ROR_AX: Instruction = Instruction::new("ROR", 0x7e, AbsoluteX, 3, 7);
 
 // RTI: return from interrupt
-const RTI: Instruction = Instruction::new("RTI", 0x40, Implied, 1, 6);
+const RTI: Instruction = Instruction::new("RTI", 0x40, Implicit, 1, 6);
 
 // RTS return from subroutine
-const RTS: Instruction = Instruction::new("RTS", 0x60, Implied, 1, 6);
+const RTS: Instruction = Instruction::new("RTS", 0x60, Implicit, 1, 6);
 
 // SBC: subtract with carry
 const SBC_IM: Instruction = Instruction::new("SBC", 0xe9, Immediate, 2, 2);
@@ -238,13 +244,13 @@ const SBC_IX: Instruction = Instruction::new("SBC", 0xe1, Indirect, 2, 6);
 const SBC_IY: Instruction = Instruction::new("SBC", 0xf1, IndexedIndirect, 2, 5); //
 
 // SEC: set carry flag
-const SEC: Instruction = Instruction::new("SEC", 0x38, Implied, 1, 2);
+const SEC: Instruction = Instruction::new("SEC", 0x38, Implicit, 1, 2);
 
 // SED: set decimal flag
-const SED: Instruction = Instruction::new("SED", 0xf8, Implied, 1, 2);
+const SED: Instruction = Instruction::new("SED", 0xf8, Implicit, 1, 2);
 
 // SEI: set interrupt disable
-const SEI: Instruction = Instruction::new("SEI", 0x78, Implied, 1, 2);
+const SEI: Instruction = Instruction::new("SEI", 0x78, Implicit, 1, 2);
 
 // STA: store accumulator
 const STA_Z: Instruction = Instruction::new("STA", 0x85, ZeroPage, 2, 3);
@@ -266,19 +272,19 @@ const STY_ZX: Instruction = Instruction::new("STY", 0x94, ZeroPageX, 2, 4);
 const STY_A: Instruction = Instruction::new("STY", 0x8c, Absolute, 3, 4);
 
 // TAX: transfer accumulator to x
-const TAX: Instruction = Instruction::new("TAX", 0xaa, Implied, 1, 2);
+const TAX: Instruction = Instruction::new("TAX", 0xaa, Implicit, 1, 2);
 
 // TAY: transfer accumulator to y
-const TAY: Instruction = Instruction::new("TAY", 0xa8, Implied, 1, 2);
+const TAY: Instruction = Instruction::new("TAY", 0xa8, Implicit, 1, 2);
 
 // TAX: transfer stack pointer to x
-const TSX: Instruction = Instruction::new("TSX", 0xba, Implied, 1, 2);
+const TSX: Instruction = Instruction::new("TSX", 0xba, Implicit, 1, 2);
 
 // TXA: transfer x to accumulator
-const TXA: Instruction = Instruction::new("TXA", 0x8a, Implied, 1, 2);
+const TXA: Instruction = Instruction::new("TXA", 0x8a, Implicit, 1, 2);
 
 // TXS: transfer x to stack pointer
-const TXS: Instruction = Instruction::new("TXS", 0x9a, Implied, 1, 2);
+const TXS: Instruction = Instruction::new("TXS", 0x9a, Implicit, 1, 2);
 
 // TYA: transfer y to accumulator
-const TYA: Instruction = Instruction::new("TYA", 0x98, Implied, 1, 2);
+const TYA: Instruction = Instruction::new("TYA", 0x98, Implicit, 1, 2);
