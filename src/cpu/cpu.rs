@@ -1,4 +1,5 @@
-use super::instructions::Instruction;
+#![allow(non_snake_case)]
+use super::instructions::{AddressingMode, Instruction};
 
 #[derive(Debug)]
 pub struct CPU {
@@ -62,7 +63,68 @@ impl CPU {
 
     pub fn execute(&mut self, ins: &'static Instruction) {
         match ins {
+            // ADC_A => 1.add,
             _ => (),
         }
+    }
+
+    pub fn read_mem_raw(&self, address: u16) -> u8 {
+        return *self.memory.get(address as usize).expect(&format!(
+            "SEGFAULT \n\n\n\n\n just kidding. address {:#x} out of bounds",
+            address
+        ));
+    }
+
+    pub fn get_addr_8bit(&self, address: u8, mode: AddressingMode) -> u16 {
+        use AddressingMode::*;
+        match mode {
+            ZeroPage => address as u16,
+            ZeroPageX => self.reg_x.wrapping_add(address) as u16,
+            ZeroPageY => self.reg_y.wrapping_add(address) as u16,
+            IndexedIndirect => {
+                let lo_byte = self.read_mem_raw(self.get_addr_8bit(address, ZeroPageX));
+                let hi_byte = self.read_mem_raw(self.get_addr_8bit(address + 1, ZeroPageX));
+                ((hi_byte as u16) << 8) | (lo_byte as u16)
+            }
+            IndirectIndexed => {
+                let lo_byte = self.read_mem_raw(self.get_addr_8bit(address, ZeroPage));
+                let hi_byte = self.read_mem_raw(self.get_addr_8bit(address + 1, ZeroPage));
+                (((hi_byte as u16) << 8) | (lo_byte as u16)) + self.reg_y as u16
+            }
+            Relative | Immediate | Accumulator | Implicit => {
+                panic!("{:?} does not need memory address", mode)
+            }
+            _ => {
+                panic!("wrong mode, use get_addr_16bit for {:?}", mode)
+            }
+        }
+    }
+
+    pub fn get_addr_16bit(&self, address: u16, mode: AddressingMode) -> u16 {
+        use AddressingMode::*;
+        match mode {
+            Indirect => {
+                let lo_byte = self.read_mem_raw(address);
+                let hi_byte = self.read_mem_raw(address + 1);
+                ((hi_byte as u16) << 8) | (lo_byte as u16)
+            }
+            Absolute => address,
+            AbsoluteX => address + (self.reg_x as u16),
+            AbsoluteY => address + (self.reg_y as u16),
+            Relative | Immediate | Accumulator | Implicit => {
+                panic!("{:?} does not need memory address", mode)
+            }
+            _ => {
+                panic!("wrong mode, use get_addr_8bit for {:?}", mode)
+            }
+        }
+    }
+
+    pub fn read_8bit(&self, address: u8, mode: AddressingMode) -> u8 {
+        self.read_mem_raw(self.get_addr_8bit(address, mode))
+    }
+
+    pub fn read_16bit(&self, address: u16, mode: AddressingMode) -> u8 {
+        self.read_mem_raw(self.get_addr_16bit(address, mode))
     }
 }

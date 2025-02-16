@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+#[derive(Debug)]
 pub enum AddressingMode {
     // Implied by the instruction itself
     // Ex: `CLC`, `RTS`
