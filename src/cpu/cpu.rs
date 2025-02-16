@@ -1,6 +1,11 @@
 #![allow(non_snake_case)]
 use super::instructions::{AddressingMode, Instruction};
 
+// #[path = "./tests.rs"]
+// mod super::tests;
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug)]
 pub struct CPU {
     pub reg_x: u8,
@@ -69,10 +74,7 @@ impl CPU {
     }
 
     pub fn read_mem_raw(&self, address: u16) -> u8 {
-        return *self.memory.get(address as usize).expect(&format!(
-            "SEGFAULT \n\n\n\n\n just kidding. address {:#x} out of bounds",
-            address
-        ));
+        return self.memory[address as usize];
     }
 
     pub fn get_addr_8bit(&self, address: u8, mode: AddressingMode) -> u16 {
