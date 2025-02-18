@@ -184,6 +184,73 @@ const CPY_IM: Instruction = Instruction::new("CPY", 0xc0, Immediate, 2, 2);
 const CPY_Z: Instruction = Instruction::new("CPY", 0xc4, ZeroPage, 2, 3);
 const CPY_A: Instruction = Instruction::new("CPY", 0xcc, Absolute, 3, 4);
 
+// MISSING DEC - LDY
+
+// DEC: decrement memory
+const DEC_Z: Instruction = Instruction::new("DEC", 0xc6, ZeroPage, 2, 5);
+const DEC_ZX: Instruction = Instruction::new("DEC", 0xd6, ZeroPageX, 2, 6);
+const DEC_A: Instruction = Instruction::new("DEC", 0xce, Absolute, 3, 6);
+const DEC_AX: Instruction = Instruction::new("DEC", 0xde, AbsoluteX, 3, 7);
+
+// DEX: decrement x register
+const DEX: Instruction = Instruction::new("DEX", 0xca, Implicit, 1, 2);
+
+// DEY: decrement Y register
+const DEY: Instruction = Instruction::new("DEY", 0x88, Implicit, 1, 2);
+
+// EOR: exclusive or
+const EOR_IM: Instruction = Instruction::new("EOR", 0x49, Immediate, 2, 2);
+const EOR_Z: Instruction = Instruction::new("EOR", 0x45, ZeroPage, 2, 3);
+const EOR_ZX: Instruction = Instruction::new("EOR", 0x55, ZeroPageX, 2, 4);
+const EOR_A: Instruction = Instruction::new("EOR", 0x4d, Absolute, 3, 4);
+const EOR_AX: Instruction = Instruction::new("EOR", 0x5d, AbsoluteX, 3, 4); // ex
+const EOR_AY: Instruction = Instruction::new("EOR", 0x59, AbsoluteY, 3, 4); // ex
+const EOR_IX: Instruction = Instruction::new("EOR", 0x41, Indirect, 2, 6);
+const EOR_IY: Instruction = Instruction::new("EOR", 0x51, IndexedIndirect, 2, 5); // ex
+
+// INC: increment memory
+const INC_Z: Instruction = Instruction::new("INC", 0xe6, ZeroPage, 2, 5);
+const INC_ZX: Instruction = Instruction::new("INC", 0xf6, ZeroPageX, 2, 6);
+const INC_A: Instruction = Instruction::new("INC", 0xee, Absolute, 3, 6);
+const INC_AX: Instruction = Instruction::new("INC", 0xfe, AbsoluteX, 3, 7);
+
+// INX: increment x register
+const INX: Instruction = Instruction::new("INX", 0xe8, Implicit, 1, 2);
+
+// INY: increment Y register
+const INY: Instruction = Instruction::new("INY", 0xc8, Implicit, 1, 2);
+
+// JMP: jump
+const JMP_A: Instruction = Instruction::new("JMP", 0x4c, Absolute, 3, 3);
+const JMP_I: Instruction = Instruction::new("JMP", 0x6c, Absolute, 3, 5);
+
+// JSR: jump to subroutine
+const JSR_A: Instruction = Instruction::new("JSR", 0x20, Absolute, 3, 6);
+
+// LDA: load accumulator
+const LDA_IM: Instruction = Instruction::new("LDA", 0xa9, Immediate, 2, 2);
+const LDA_Z: Instruction = Instruction::new("LDA", 0xa5, ZeroPage, 2, 3);
+const LDA_ZX: Instruction = Instruction::new("LDA", 0xb5, ZeroPageX, 2, 4);
+const LDA_A: Instruction = Instruction::new("LDA", 0xad, Absolute, 3, 4);
+const LDA_AX: Instruction = Instruction::new("LDA", 0xbd, AbsoluteX, 3, 4); // ex
+const LDA_AY: Instruction = Instruction::new("LDA", 0xb9, AbsoluteY, 3, 4); // ex
+const LDA_IX: Instruction = Instruction::new("LDA", 0xa1, Indirect, 2, 6);
+const LDA_IY: Instruction = Instruction::new("LDA", 0xb1, IndexedIndirect, 2, 5); // ex
+
+// LDX: load x register
+const LDX_IM: Instruction = Instruction::new("LDX", 0xa2, Immediate, 2, 2);
+const LDX_Z: Instruction = Instruction::new("LDX", 0xa6, ZeroPage, 2, 3);
+const LDX_ZY: Instruction = Instruction::new("LDX", 0xb6, ZeroPageY, 2, 4);
+const LDX_A: Instruction = Instruction::new("LDX", 0xae, Absolute, 3, 4);
+const LDX_AY: Instruction = Instruction::new("LDX", 0xbe, AbsoluteY, 3, 4); // ex
+
+// LDY: load y register
+const LDY_IM: Instruction = Instruction::new("LDY", 0xa0, Immediate, 2, 2);
+const LDY_Z: Instruction = Instruction::new("LDY", 0xa4, ZeroPage, 2, 3);
+const LDY_ZX: Instruction = Instruction::new("LDY", 0xb4, ZeroPageX, 2, 4);
+const LDY_A: Instruction = Instruction::new("LDY", 0xac, Absolute, 3, 4);
+const LDY_AX: Instruction = Instruction::new("LDY", 0xbc, AbsoluteX, 3, 4); // ex
+
 // LSR: logical shift right
 const LSR_AC: Instruction = Instruction::new("LSR", 0x4a, Accumulator, 1, 2);
 const LSR_Z: Instruction = Instruction::new("LSR", 0x46, ZeroPage, 2, 5);
@@ -344,6 +411,47 @@ pub const fn get_instruction(opcode: u8) -> &'static Instruction {
         0xc0 => &CPY_IM,
         0xc4 => &CPY_Z,
         0xcc => &CPY_A,
+        0xc6 => &DEC_Z,
+        0xd6 => &DEC_ZX,
+        0xce => &DEC_A,
+        0xde => &DEC_AX,
+        0xca => &DEX,
+        0x88 => &DEY,
+        0x49 => &EOR_IM,
+        0x45 => &EOR_Z,
+        0x55 => &EOR_ZX,
+        0x4d => &EOR_A,
+        0x5d => &EOR_AX,
+        0x59 => &EOR_AY,
+        0x41 => &EOR_IX,
+        0x51 => &EOR_IY,
+        0xe6 => &INC_Z,
+        0xf6 => &INC_ZX,
+        0xee => &INC_A,
+        0xfe => &INC_AX,
+        0xe8 => &INX,
+        0xc8 => &INY,
+        0x4c => &JMP_A,
+        0x6c => &JMP_I,
+        0x20 => &JSR_A,
+        0xa9 => &LDA_IM,
+        0xa5 => &LDA_Z,
+        0xb5 => &LDA_ZX,
+        0xad => &LDA_A,
+        0xbd => &LDA_AX,
+        0xb9 => &LDA_AY,
+        0xa1 => &LDA_IX,
+        0xb1 => &LDA_IY,
+        0xa2 => &LDX_IM,
+        0xa6 => &LDX_Z,
+        0xb6 => &LDX_ZY,
+        0xae => &LDX_A,
+        0xbe => &LDX_AY,
+        0xa0 => &LDY_IM,
+        0xa4 => &LDY_Z,
+        0xb4 => &LDY_ZX,
+        0xac => &LDY_A,
+        0xbc => &LDY_AX,
         0x4a => &LSR_AC,
         0x46 => &LSR_Z,
         0x56 => &LSR_ZX,

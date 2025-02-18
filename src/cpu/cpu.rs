@@ -68,7 +68,7 @@ impl CPU {
 
     pub fn execute(&mut self, ins: &'static Instruction) {
         match ins {
-            // ADC_A => 1.add,
+            LDA_I => {}
             _ => (),
         }
     }
