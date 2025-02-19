@@ -69,7 +69,7 @@ impl CPU {
     }
 
     pub fn execute(&mut self, ins: Instruction) {
-        // use super::instructions::*;
+        use super::instructions::InstructionName as IN;
 
         self.program_counter += 1;
         self.cycle_count += ins.cycles as u32; // TODO add oops cycles
@@ -78,11 +78,11 @@ impl CPU {
 
         match n {
             // TODO ADC
-            "AND" => {
+            IN::AND => {
                 self.accumulator &= self.fetch_value(ins);
                 self.set_zn_flags(self.accumulator);
             }
-            "ASL" => {
+            IN::ASL => {
                 if ins.mode == AddressingMode::Accumulator {
                     self.set_flag(Flag::Carry, self.accumulator >> 7);
                     self.accumulator <<= 1;
@@ -97,14 +97,14 @@ impl CPU {
                 // TODO read-modify-write instruction?
             }
 
-            "BIT" => {
+            IN::BIT => {
                 let val = self.fetch_value(ins);
                 self.set_flag(Flag::Zero, (val & self.accumulator == 1) as u8);
                 self.set_flag(Flag::Overflow, val >> 6 & 1);
                 self.set_flag(Flag::Negative, val >> 7);
             }
 
-            "BCS" => {
+            IN::BCS => {
                 if self.get_flag(Flag::Carry) == 1 {
                     self.cycle_count += 1;
                     // TODO check that this works
@@ -115,7 +115,7 @@ impl CPU {
                 }
             }
 
-            "BCC" => {
+            IN::BCC => {
                 if self.get_flag(Flag::Carry) == 0 {
                     self.cycle_count += 1;
                     // TODO check that this works
@@ -126,7 +126,7 @@ impl CPU {
                 }
             }
 
-            "BEQ" => {
+            IN::BEQ => {
                 if self.get_flag(Flag::Zero) == 1 {
                     self.cycle_count += 1;
                     self.program_counter =
@@ -136,7 +136,7 @@ impl CPU {
                 }
             }
 
-            "BNE" => {
+            IN::BNE => {
                 if self.get_flag(Flag::Zero) == 0 {
                     self.cycle_count += 1;
                     self.program_counter =
@@ -146,7 +146,7 @@ impl CPU {
                 }
             }
 
-            "BMI" => {
+            IN::BMI => {
                 if self.get_flag(Flag::Negative) == 1 {
                     self.cycle_count += 1;
                     self.program_counter =
@@ -156,7 +156,7 @@ impl CPU {
                 }
             }
 
-            "BPL" => {
+            IN::BPL => {
                 if self.get_flag(Flag::Negative) == 0 {
                     self.cycle_count += 1;
                     self.program_counter =
@@ -166,7 +166,7 @@ impl CPU {
                 }
             }
 
-            "BVC" => {
+            IN::BVC => {
                 if self.get_flag(Flag::Overflow) == 0 {
                     self.cycle_count += 1;
                     self.program_counter =
@@ -176,7 +176,7 @@ impl CPU {
                 }
             }
 
-            "BVS" => {
+            IN::BVS => {
                 if self.get_flag(Flag::Overflow) == 1 {
                     self.cycle_count += 1;
                     self.program_counter =
@@ -186,85 +186,85 @@ impl CPU {
                 }
             }
 
-            "CLC" => {
+            IN::CLC => {
                 self.set_flag(Flag::Carry, 0);
             }
 
-            "CLD" => {
+            IN::CLD => {
                 self.set_flag(Flag::Decimal, 0);
             }
 
-            "CLI" => {
+            IN::CLI => {
                 // TODO this needs to be delayed by 1 instruction
                 self.set_flag(Flag::Interrupt, 0);
             }
 
-            "CLV" => {
+            IN::CLV => {
                 self.set_flag(Flag::Overflow, 0);
             }
 
             // BRK TODO
-            "CMP" => {
+            IN::CMP => {
                 let val = self.fetch_value(ins);
                 self.set_flag(Flag::Carry, if self.accumulator >= val { 1 } else { 0 });
                 self.set_flag(Flag::Zero, if self.accumulator == val { 1 } else { 0 });
                 self.set_flag(Flag::Negative, self.accumulator.wrapping_sub(val) >> 7);
             }
 
-            "CPX" => {
+            IN::CPX => {
                 let val = self.fetch_value(ins);
                 self.set_flag(Flag::Carry, if self.reg_x >= val { 1 } else { 0 });
                 self.set_flag(Flag::Zero, if self.reg_x == val { 1 } else { 0 });
                 self.set_flag(Flag::Negative, self.reg_x.wrapping_sub(val) >> 7);
             }
 
-            "CPY" => {
+            IN::CPY => {
                 let val = self.fetch_value(ins);
                 self.set_flag(Flag::Carry, if self.reg_y >= val { 1 } else { 0 });
                 self.set_flag(Flag::Zero, if self.reg_y == val { 1 } else { 0 });
                 self.set_flag(Flag::Negative, self.reg_y.wrapping_sub(val) >> 7);
             }
 
-            "DEC" => {
+            IN::DEC => {
                 // TODO rmw
                 let (val, addr) = self.fetch_value_keep_addr(ins);
                 self.memory[addr as usize] = val.wrapping_sub(1);
                 self.set_zn_flags(val.wrapping_sub(1));
             }
 
-            "DEX" => {
+            IN::DEX => {
                 self.reg_x = self.reg_x.wrapping_sub(1);
                 self.set_zn_flags(self.reg_x);
             }
 
-            "DEY" => {
+            IN::DEY => {
                 self.reg_y = self.reg_y.wrapping_sub(1);
                 self.set_zn_flags(self.reg_y);
             }
 
-            "EOR" => {
+            IN::EOR => {
                 self.accumulator ^= self.fetch_value(ins);
                 self.set_zn_flags(self.accumulator);
             }
 
-            "INC" => {
+            IN::INC => {
                 // TODO rmw
                 let (val, addr) = self.fetch_value_keep_addr(ins);
                 self.memory[addr as usize] = val.wrapping_add(1);
                 self.set_zn_flags(val.wrapping_add(1));
             }
 
-            "INX" => {
+            IN::INX => {
                 self.reg_x = self.reg_x.wrapping_add(1);
                 self.set_zn_flags(self.reg_x);
             }
 
-            "INY" => {
+            IN::INY => {
                 self.reg_y = self.reg_y.wrapping_add(1);
                 self.set_zn_flags(self.reg_y);
             }
 
-            "JMP" => {
+            IN::JMP => {
                 if ins.mode == AddressingMode::Immediate {
                     self.program_counter = self.get_next_u16();
                 } else {
@@ -279,58 +279,6 @@ impl CPU {
                 todo!()
             }
         };
-        // match ins {
-        //     Instruction {
-        //         name: "ADC:",
-        //         opcode,
-        //         mode,
-        //         bytes,
-        //         cycles,
-        //     } => {
-        //         panic!("dwoiwjefoji");
-        //     }
-        //     AND_IM => {
-        //         self.accumulator &= self.get_next_u8();
-        //         self.set_zn_flags(self.accumulator);
-        //     }
-
-        //     LDA_IM => {
-        //         self.accumulator = self.get_next_u8();
-        //     }
-        //     LDA_Z | LDA_ZX | LDA_IX | LDA_IY => {
-        //         let b = self.get_next_u8();
-        //         self.accumulator = self.read_8bit(b, ins.mode);
-        //     }
-        //     LDA_A | LDA_AX | LDA_AY => {
-        //         let b = self.get_next_u16();
-        //         self.accumulator = self.read_16bit(b, ins.mode);
-        //     }
-
-        //     LDX_IM => {
-        //         self.reg_x = self.get_next_u8();
-        //     }
-        //     LDX_Z | LDX_ZY => {
-        //         let b = self.get_next_u8();
-        //         self.reg_x = self.read_8bit(b, ins.mode);
-        //     }
-        //     LDX_A | LDX_AY => {
-        //         let b = self.get_next_u16();
-        //         self.reg_x = self.read_16bit(b, ins.mode);
-        //     }
-
-        //     LDY_IM => {
-        //         self.reg_y = self.get_next_u8();
-        //     }
-        //     LDY_Z | LDY_ZX => {
-        //         let b = self.get_next_u8();
-        //         self.reg_y = self.read_8bit(b, ins.mode);
-        //     }
-        //     LDY_A | LDY_AX => {
-        //         let b = self.get_next_u16();
-        //         self.reg_y = self.read_16bit(b, ins.mode);
-        //     }
-        //     _ => (),
-        // }
     }
 
     // INCREMENTS PC
