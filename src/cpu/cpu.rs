@@ -77,6 +77,7 @@ impl CPU {
         let n = ins.name;
 
         match n {
+            // TODO ADC
             "AND" => {
                 self.accumulator &= self.fetch_value(ins);
                 self.set_zn_flags(self.accumulator);
@@ -99,8 +100,8 @@ impl CPU {
             "BIT" => {
                 let val = self.fetch_value(ins);
                 self.set_flag(Flag::Zero, (val & self.accumulator == 1) as u8);
-                self.set_flag(Flag::Overflow, (val >> 6) & 1);
-                self.set_flag(Flag::Negative, (val >> 7) & 1);
+                self.set_flag(Flag::Overflow, val >> 6 & 1);
+                self.set_flag(Flag::Negative, val >> 7);
             }
 
             "BCS" => {
@@ -185,7 +186,89 @@ impl CPU {
                 }
             }
 
+            "CLC" => {
+                self.set_flag(Flag::Carry, 0);
+            }
+
+            "CLD" => {
+                self.set_flag(Flag::Decimal, 0);
+            }
+
+            "CLI" => {
+                // TODO this needs to be delayed by 1 instruction
+                self.set_flag(Flag::Interrupt, 0);
+            }
+
+            "CLV" => {
+                self.set_flag(Flag::Overflow, 0);
+            }
+
             // BRK TODO
+            "CMP" => {
+                let val = self.fetch_value(ins);
+                self.set_flag(Flag::Carry, if self.accumulator >= val { 1 } else { 0 });
+                self.set_flag(Flag::Zero, if self.accumulator == val { 1 } else { 0 });
+                self.set_flag(Flag::Negative, self.accumulator.wrapping_sub(val) >> 7);
+            }
+
+            "CPX" => {
+                let val = self.fetch_value(ins);
+                self.set_flag(Flag::Carry, if self.reg_x >= val { 1 } else { 0 });
+                self.set_flag(Flag::Zero, if self.reg_x == val { 1 } else { 0 });
+                self.set_flag(Flag::Negative, self.reg_x.wrapping_sub(val) >> 7);
+            }
+
+            "CPY" => {
+                let val = self.fetch_value(ins);
+                self.set_flag(Flag::Carry, if self.reg_y >= val { 1 } else { 0 });
+                self.set_flag(Flag::Zero, if self.reg_y == val { 1 } else { 0 });
+                self.set_flag(Flag::Negative, self.reg_y.wrapping_sub(val) >> 7);
+            }
+
+            "DEC" => {
+                // TODO rmw
+                let (val, addr) = self.fetch_value_keep_addr(ins);
+                self.memory[addr as usize] = val.wrapping_sub(1);
+                self.set_zn_flags(val.wrapping_sub(1));
+            }
+
+            "DEX" => {
+                self.reg_x = self.reg_x.wrapping_sub(1);
+                self.set_zn_flags(self.reg_x);
+            }
+
+            "DEY" => {
+                self.reg_y = self.reg_y.wrapping_sub(1);
+                self.set_zn_flags(self.reg_y);
+            }
+
+            "EOR" => {
+                self.accumulator ^= self.fetch_value(ins);
+                self.set_zn_flags(self.accumulator);
+            }
+
+            "INC" => {
+                // TODO rmw
+                let (val, addr) = self.fetch_value_keep_addr(ins);
+                self.memory[addr as usize] = val.wrapping_add(1);
+                self.set_zn_flags(val.wrapping_add(1));
+            }
+
+            "INX" => {
+                self.reg_x = self.reg_x.wrapping_add(1);
+                self.set_zn_flags(self.reg_x);
+            }
+
+            "INY" => {
+                self.reg_y = self.reg_y.wrapping_add(1);
+                self.set_zn_flags(self.reg_y);
+            }
+
+            "JMP" => {
+                self.program_counter = self.fetch_value(ins);
+                // TODO there is a bug associated with this instruction, implement maybe?
+            }
+
             _ => {
                 todo!()
             }
@@ -355,6 +438,6 @@ impl CPU {
 
     fn set_zn_flags(&mut self, val: u8) {
         self.set_flag(Flag::Zero, if val == 0 { 0 } else { 1 });
-        self.set_flag(Flag::Negative, (val >> 7) & 1);
+        self.set_flag(Flag::Negative, val >> 7);
     }
 }
