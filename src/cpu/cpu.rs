@@ -94,7 +94,7 @@ impl CPU {
                     self.set_zn_flags(val);
                     self.memory[addr as usize] = val;
                 }
-                // TODO read-modify-write instruction?
+                // TODO rmw
             }
 
             IN::BIT => {
