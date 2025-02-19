@@ -265,7 +265,13 @@ impl CPU {
             }
 
             "JMP" => {
-                self.program_counter = self.fetch_value(ins);
+                if ins.mode == AddressingMode::Immediate {
+                    self.program_counter = self.get_next_u16();
+                } else {
+                    let addr = self.get_next_u16();
+                    self.program_counter = ((self.read_mem_raw(addr + 1) as u16) << 8)
+                        | (self.read_mem_raw(addr) as u16);
+                }
                 // TODO there is a bug associated with this instruction, implement maybe?
             }
 
