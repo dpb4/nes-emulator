@@ -1,1 +1,244 @@
 // BCC, BCS, BEQ, BNE, BPL, BMI, BVC, BVS
+
+use crate::cpu::{cpu::tests::set_multiple_bytes, instructions, Flag, CPU};
+use instructions as IN;
+
+#[test]
+fn test_bcs() {
+    let mut cpu = CPU::new();
+
+    cpu.set_flag(Flag::Carry, 1);
+    set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
+
+    cpu.program_counter = 2111;
+    cpu.execute(IN::BCS);
+
+    assert_eq!(cpu.cycle_count, 3);
+    assert_eq!(cpu.program_counter, 2113);
+
+    cpu.execute(IN::BCS);
+
+    assert_eq!(cpu.cycle_count, 6);
+    assert_eq!(cpu.program_counter, 2113 + 2 + 3);
+
+    cpu.execute(IN::BCS);
+
+    assert_eq!(cpu.cycle_count, 9);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
+
+    cpu.set_flag(Flag::Carry, 0);
+    cpu.execute(IN::BCS);
+
+    assert_eq!(cpu.cycle_count, 11);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1 + 2);
+}
+
+#[test]
+fn test_bcc() {
+    let mut cpu = CPU::new();
+
+    cpu.set_flag(Flag::Carry, 0);
+    set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
+
+    cpu.program_counter = 2111;
+    cpu.execute(IN::BCC);
+
+    assert_eq!(cpu.cycle_count, 3);
+    assert_eq!(cpu.program_counter, 2113);
+
+    cpu.execute(IN::BCC);
+
+    assert_eq!(cpu.cycle_count, 6);
+    assert_eq!(cpu.program_counter, 2113 + 2 + 3);
+
+    cpu.execute(IN::BCC);
+
+    assert_eq!(cpu.cycle_count, 9);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
+
+    cpu.set_flag(Flag::Carry, 1);
+    cpu.execute(IN::BCC);
+
+    assert_eq!(cpu.cycle_count, 11);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1 + 2);
+}
+
+#[test]
+fn test_beq() {
+    let mut cpu = CPU::new();
+
+    cpu.set_flag(Flag::Zero, 1);
+    set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
+
+    cpu.program_counter = 2111;
+    cpu.execute(IN::BEQ);
+
+    assert_eq!(cpu.cycle_count, 3);
+    assert_eq!(cpu.program_counter, 2113);
+
+    cpu.execute(IN::BEQ);
+
+    assert_eq!(cpu.cycle_count, 6);
+    assert_eq!(cpu.program_counter, 2113 + 2 + 3);
+
+    cpu.execute(IN::BEQ);
+
+    assert_eq!(cpu.cycle_count, 9);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
+
+    cpu.set_flag(Flag::Zero, 0);
+    cpu.execute(IN::BEQ);
+
+    assert_eq!(cpu.cycle_count, 11);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1 + 2);
+}
+
+#[test]
+fn test_bne() {
+    let mut cpu = CPU::new();
+
+    cpu.set_flag(Flag::Zero, 0);
+    set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
+
+    cpu.program_counter = 2111;
+    cpu.execute(IN::BNE);
+
+    assert_eq!(cpu.cycle_count, 3);
+    assert_eq!(cpu.program_counter, 2113);
+
+    cpu.execute(IN::BNE);
+
+    assert_eq!(cpu.cycle_count, 6);
+    assert_eq!(cpu.program_counter, 2113 + 2 + 3);
+
+    cpu.execute(IN::BNE);
+
+    assert_eq!(cpu.cycle_count, 9);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
+
+    cpu.set_flag(Flag::Zero, 1);
+    cpu.execute(IN::BNE);
+
+    assert_eq!(cpu.cycle_count, 11);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1 + 2);
+}
+
+#[test]
+fn test_bmi() {
+    let mut cpu = CPU::new();
+
+    cpu.set_flag(Flag::Negative, 1);
+    set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
+
+    cpu.program_counter = 2111;
+    cpu.execute(IN::BMI);
+
+    assert_eq!(cpu.cycle_count, 3);
+    assert_eq!(cpu.program_counter, 2113);
+
+    cpu.execute(IN::BMI);
+
+    assert_eq!(cpu.cycle_count, 6);
+    assert_eq!(cpu.program_counter, 2113 + 2 + 3);
+
+    cpu.execute(IN::BMI);
+
+    assert_eq!(cpu.cycle_count, 9);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
+
+    cpu.set_flag(Flag::Negative, 0);
+    cpu.execute(IN::BMI);
+
+    assert_eq!(cpu.cycle_count, 11);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1 + 2);
+}
+
+#[test]
+fn test_bpl() {
+    let mut cpu = CPU::new();
+
+    cpu.set_flag(Flag::Negative, 0);
+    set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
+
+    cpu.program_counter = 2111;
+    cpu.execute(IN::BPL);
+
+    assert_eq!(cpu.cycle_count, 3);
+    assert_eq!(cpu.program_counter, 2113);
+
+    cpu.execute(IN::BPL);
+
+    assert_eq!(cpu.cycle_count, 6);
+    assert_eq!(cpu.program_counter, 2113 + 2 + 3);
+
+    cpu.execute(IN::BPL);
+
+    assert_eq!(cpu.cycle_count, 9);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
+
+    cpu.set_flag(Flag::Negative, 1);
+    cpu.execute(IN::BPL);
+
+    assert_eq!(cpu.cycle_count, 11);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1 + 2);
+}
+
+#[test]
+fn test_bvc() {
+    let mut cpu = CPU::new();
+
+    cpu.set_flag(Flag::Overflow, 0);
+    set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
+
+    cpu.program_counter = 2111;
+    cpu.execute(IN::BVC);
+
+    assert_eq!(cpu.cycle_count, 3);
+    assert_eq!(cpu.program_counter, 2113);
+
+    cpu.execute(IN::BVC);
+
+    assert_eq!(cpu.cycle_count, 6);
+    assert_eq!(cpu.program_counter, 2113 + 2 + 3);
+
+    cpu.execute(IN::BVC);
+
+    assert_eq!(cpu.cycle_count, 9);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
+
+    cpu.set_flag(Flag::Overflow, 1);
+    cpu.execute(IN::BVC);
+
+    assert_eq!(cpu.cycle_count, 11);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1 + 2);
+}
+
+#[test]
+fn test_bvs() {
+    let mut cpu = CPU::new();
+
+    cpu.set_flag(Flag::Overflow, 1);
+    set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
+
+    cpu.program_counter = 2111;
+    cpu.execute(IN::BVS);
+
+    assert_eq!(cpu.cycle_count, 3);
+    assert_eq!(cpu.program_counter, 2113);
+
+    cpu.execute(IN::BVS);
+
+    assert_eq!(cpu.cycle_count, 6);
+    assert_eq!(cpu.program_counter, 2113 + 2 + 3);
+
+    cpu.execute(IN::BVS);
+
+    assert_eq!(cpu.cycle_count, 9);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
+
+    cpu.set_flag(Flag::Overflow, 0);
+    cpu.execute(IN::BVS);
+
+    assert_eq!(cpu.cycle_count, 11);
+    assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1 + 2);
+}

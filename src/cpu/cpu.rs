@@ -111,8 +111,13 @@ impl CPU {
                 if self.get_flag(Flag::Carry) == 1 {
                     self.cycle_count += 1;
                     // TODO check that this works
-                    self.program_counter =
-                        ((self.program_counter as i32) + self.get_next_u8() as i32) as u16;
+                    let byte = self.get_next_u8();
+                    let branch = if byte & 0b10000000 != 0 {
+                        -(((!byte).wrapping_add(1)) as i32)
+                    } else {
+                        byte as i32
+                    };
+                    self.program_counter = ((self.program_counter as i32) + branch) as u16;
                 } else {
                     self.program_counter += 1;
                 }
@@ -121,9 +126,14 @@ impl CPU {
             IN::BCC => {
                 if self.get_flag(Flag::Carry) == 0 {
                     self.cycle_count += 1;
-                    // TODO check that this works
-                    self.program_counter =
-                        ((self.program_counter as i32) + self.get_next_u8() as i32) as u16;
+                    // TODO find better way?
+                    let byte = self.get_next_u8();
+                    let branch = if byte & 0b10000000 != 0 {
+                        -(((!byte).wrapping_add(1)) as i32)
+                    } else {
+                        byte as i32
+                    };
+                    self.program_counter = ((self.program_counter as i32) + branch) as u16;
                 } else {
                     self.program_counter += 1;
                 }
@@ -132,8 +142,13 @@ impl CPU {
             IN::BEQ => {
                 if self.get_flag(Flag::Zero) == 1 {
                     self.cycle_count += 1;
-                    self.program_counter =
-                        ((self.program_counter as i32) + self.get_next_u8() as i32) as u16;
+                    let byte = self.get_next_u8();
+                    let branch = if byte & 0b10000000 != 0 {
+                        -(((!byte).wrapping_add(1)) as i32)
+                    } else {
+                        byte as i32
+                    };
+                    self.program_counter = ((self.program_counter as i32) + branch) as u16;
                 } else {
                     self.program_counter += 1;
                 }
@@ -142,8 +157,13 @@ impl CPU {
             IN::BNE => {
                 if self.get_flag(Flag::Zero) == 0 {
                     self.cycle_count += 1;
-                    self.program_counter =
-                        ((self.program_counter as i32) + self.get_next_u8() as i32) as u16;
+                    let byte = self.get_next_u8();
+                    let branch = if byte & 0b10000000 != 0 {
+                        -(((!byte).wrapping_add(1)) as i32)
+                    } else {
+                        byte as i32
+                    };
+                    self.program_counter = ((self.program_counter as i32) + branch) as u16;
                 } else {
                     self.program_counter += 1;
                 }
@@ -152,8 +172,13 @@ impl CPU {
             IN::BMI => {
                 if self.get_flag(Flag::Negative) == 1 {
                     self.cycle_count += 1;
-                    self.program_counter =
-                        ((self.program_counter as i32) + self.get_next_u8() as i32) as u16;
+                    let byte = self.get_next_u8();
+                    let branch = if byte & 0b10000000 != 0 {
+                        -(((!byte).wrapping_add(1)) as i32)
+                    } else {
+                        byte as i32
+                    };
+                    self.program_counter = ((self.program_counter as i32) + branch) as u16;
                 } else {
                     self.program_counter += 1;
                 }
@@ -162,8 +187,13 @@ impl CPU {
             IN::BPL => {
                 if self.get_flag(Flag::Negative) == 0 {
                     self.cycle_count += 1;
-                    self.program_counter =
-                        ((self.program_counter as i32) + self.get_next_u8() as i32) as u16;
+                    let byte = self.get_next_u8();
+                    let branch = if byte & 0b10000000 != 0 {
+                        -(((!byte).wrapping_add(1)) as i32)
+                    } else {
+                        byte as i32
+                    };
+                    self.program_counter = ((self.program_counter as i32) + branch) as u16;
                 } else {
                     self.program_counter += 1;
                 }
@@ -172,8 +202,13 @@ impl CPU {
             IN::BVC => {
                 if self.get_flag(Flag::Overflow) == 0 {
                     self.cycle_count += 1;
-                    self.program_counter =
-                        ((self.program_counter as i32) + self.get_next_u8() as i32) as u16;
+                    let byte = self.get_next_u8();
+                    let branch = if byte & 0b10000000 != 0 {
+                        -(((!byte).wrapping_add(1)) as i32)
+                    } else {
+                        byte as i32
+                    };
+                    self.program_counter = ((self.program_counter as i32) + branch) as u16;
                 } else {
                     self.program_counter += 1;
                 }
@@ -182,8 +217,13 @@ impl CPU {
             IN::BVS => {
                 if self.get_flag(Flag::Overflow) == 1 {
                     self.cycle_count += 1;
-                    self.program_counter =
-                        ((self.program_counter as i32) + self.get_next_u8() as i32) as u16;
+                    let byte = self.get_next_u8();
+                    let branch = if byte & 0b10000000 != 0 {
+                        -(((!byte).wrapping_add(1)) as i32)
+                    } else {
+                        byte as i32
+                    };
+                    self.program_counter = ((self.program_counter as i32) + branch) as u16;
                 } else {
                     self.program_counter += 1;
                 }
@@ -366,7 +406,7 @@ impl CPU {
                 self.read_8bit(addr, mode)
             }
             M::Absolute | M::AbsoluteX | M::AbsoluteY | M::Indirect => {
-                let addr = dbg!(self.get_next_u16());
+                let addr = self.get_next_u16();
                 self.read_16bit(addr, mode)
             }
             _ => panic!("cannot fetch value for {:?}", mode),
