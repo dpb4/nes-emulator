@@ -1,29 +1,5 @@
 #![cfg(test)]
-use crate::cpu::{instructions::AddressingMode::*, CPU};
-
-// use super::*;
-// const cpu: CPU = CPU::new();
-
-fn set_single_byte(cpu: &mut CPU, address: u16, byte: u8) {
-    cpu.memory[address as usize] = byte;
-}
-
-fn set_multiple_bytes(cpu: &mut CPU, start_address: u16, bytes: &Vec<u8>) {
-    for i in 0..bytes.len() {
-        set_single_byte(cpu, start_address + i as u16, bytes[i]);
-    }
-}
-
-fn set_byte_example(cpu: &mut CPU) {
-    for i in 0..0xffff_u16 {
-        let val = i.wrapping_mul(1793) as u8;
-        set_single_byte(cpu, i, val);
-    }
-}
-
-fn get_example_byte(i: u16) -> u8 {
-    i.wrapping_mul(1793) as u8
-}
+use crate::cpu::{cpu::tests::*, instructions::AddressingMode::*, CPU};
 
 #[test]
 fn test_set_byte() {

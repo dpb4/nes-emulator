@@ -71,7 +71,7 @@ impl CPU {
     pub fn execute(&mut self, ins: Instruction) {
         use super::instructions::InstructionName as IN;
 
-        self.program_counter += 1;
+        self.program_counter += 1; // TODO do this in fetch?
         self.cycle_count += ins.cycles as u32; // TODO add oops cycles
 
         let n = ins.name;
@@ -79,10 +79,12 @@ impl CPU {
         match n {
             // TODO ADC
             IN::AND => {
+                // tested
                 self.accumulator &= self.fetch_value(ins);
                 self.set_zn_flags(self.accumulator);
             }
             IN::ASL => {
+                // tested
                 if ins.mode == AddressingMode::Accumulator {
                     self.set_flag(Flag::Carry, self.accumulator >> 7);
                     self.accumulator <<= 1;
@@ -98,8 +100,9 @@ impl CPU {
             }
 
             IN::BIT => {
+                // tested
                 let val = self.fetch_value(ins);
-                self.set_flag(Flag::Zero, (val & self.accumulator == 1) as u8);
+                self.set_flag(Flag::Zero, (val & self.accumulator == 0) as u8);
                 self.set_flag(Flag::Overflow, val >> 6 & 1);
                 self.set_flag(Flag::Negative, val >> 7);
             }
@@ -324,17 +327,17 @@ impl CPU {
     }
 
     pub fn get_addr_16bit(&self, address: u16, mode: AddressingMode) -> u16 {
-        use AddressingMode::*;
+        use AddressingMode as M;
         match mode {
-            Indirect => {
+            M::Indirect => {
                 let lo_byte = self.read_mem_raw(address);
                 let hi_byte = self.read_mem_raw(address + 1);
                 ((hi_byte as u16) << 8) | (lo_byte as u16)
             }
-            Absolute => address,
-            AbsoluteX => address + (self.reg_x as u16),
-            AbsoluteY => address + (self.reg_y as u16),
-            Relative | Immediate | Accumulator | Implicit => {
+            M::Absolute => address,
+            M::AbsoluteX => address + (self.reg_x as u16),
+            M::AbsoluteY => address + (self.reg_y as u16),
+            M::Relative | M::Immediate | M::Accumulator | M::Implicit => {
                 panic!("{:?} does not need memory address", mode)
             }
             _ => {
@@ -352,18 +355,18 @@ impl CPU {
     }
 
     fn fetch_value(&mut self, ins: Instruction) -> u8 {
-        use AddressingMode::*;
+        use AddressingMode as M;
 
         let mode = ins.mode;
 
         match mode {
-            Immediate => self.get_next_u8(),
-            ZeroPage | ZeroPageX | ZeroPageY | IndexedIndirect | IndirectIndexed => {
+            M::Immediate => self.get_next_u8(),
+            M::ZeroPage | M::ZeroPageX | M::ZeroPageY | M::IndexedIndirect | M::IndirectIndexed => {
                 let addr = self.get_next_u8();
                 self.read_8bit(addr, mode)
             }
-            Absolute | AbsoluteX | AbsoluteY | Indirect => {
-                let addr = self.get_next_u16();
+            M::Absolute | M::AbsoluteX | M::AbsoluteY | M::Indirect => {
+                let addr = dbg!(self.get_next_u16());
                 self.read_16bit(addr, mode)
             }
             _ => panic!("cannot fetch value for {:?}", mode),
@@ -371,17 +374,17 @@ impl CPU {
     }
 
     fn fetch_value_keep_addr(&mut self, ins: Instruction) -> (u8, u16) {
-        use AddressingMode::*;
+        use AddressingMode as M;
 
         let mode = ins.mode;
 
         match mode {
             // Immediate => self.get_next_u8(),
-            ZeroPage | ZeroPageX | ZeroPageY | IndexedIndirect | IndirectIndexed => {
+            M::ZeroPage | M::ZeroPageX | M::ZeroPageY | M::IndexedIndirect | M::IndirectIndexed => {
                 let addr = self.get_next_u8();
                 (self.read_8bit(addr, mode), self.get_addr_8bit(addr, mode))
             }
-            Absolute | AbsoluteX | AbsoluteY | Indirect => {
+            M::Absolute | M::AbsoluteX | M::AbsoluteY | M::Indirect => {
                 let addr = self.get_next_u16();
                 (self.read_16bit(addr, mode), self.get_addr_16bit(addr, mode))
                 // self.read_16bit(addr, mode)
@@ -391,7 +394,7 @@ impl CPU {
     }
 
     fn set_zn_flags(&mut self, val: u8) {
-        self.set_flag(Flag::Zero, if val == 0 { 0 } else { 1 });
+        self.set_flag(Flag::Zero, if val == 0 { 1 } else { 0 });
         self.set_flag(Flag::Negative, val >> 7);
     }
 }
