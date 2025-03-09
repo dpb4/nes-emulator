@@ -62,3 +62,31 @@ fn test_bit() {
     assert_eq!(cpu.get_flag(Flag::Overflow), 0);
     assert_eq!(cpu.get_flag(Flag::Negative), 0);
 }
+
+#[test]
+fn test_eor() {
+    let mut cpu = CPU::new();
+
+    set_multiple_bytes(&mut cpu, 0, &vec![0, 0xf0, 0, 0x0, 0, 0xff]);
+
+    cpu.accumulator = 255;
+    cpu.execute(IN::EOR_IM);
+
+    assert_eq!(cpu.get_flag(Flag::Zero), 0);
+    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.accumulator, !0xf0);
+
+    cpu.accumulator = 255;
+    cpu.execute(IN::EOR_IM);
+
+    assert_eq!(cpu.get_flag(Flag::Zero), 0);
+    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.accumulator, !0x0);
+
+    cpu.accumulator = 255;
+    cpu.execute(IN::EOR_IM);
+
+    assert_eq!(cpu.get_flag(Flag::Zero), 1);
+    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.accumulator, !0xff);
+}

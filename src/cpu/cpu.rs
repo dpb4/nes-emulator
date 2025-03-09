@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+
 use super::instructions::{AddressingMode, Instruction};
 
 // #[path = "./tests.rs"]
@@ -6,6 +7,11 @@ use super::instructions::{AddressingMode, Instruction};
 #[cfg(test)]
 mod tests;
 
+macro_rules! make16 {
+    ($hi:expr, $lo:expr) => {
+        (($hi as u16) << 8) | ($lo as u16)
+    };
+}
 #[derive(Debug)]
 pub struct CPU {
     pub reg_x: u8,
@@ -64,7 +70,7 @@ impl CPU {
         }
     }
 
-    pub fn get_flag(&mut self, flag: Flag) -> u8 {
+    pub fn get_flag(&self, flag: Flag) -> u8 {
         (self.flags & (1 << flag.bit())) >> flag.bit()
     }
 
@@ -308,16 +314,159 @@ impl CPU {
             }
 
             IN::JMP => {
-                if ins.mode == AddressingMode::Immediate {
+                if ins.mode == AddressingMode::Absolute {
                     self.program_counter = self.get_next_u16();
                 } else {
                     let addr = self.get_next_u16();
-                    self.program_counter = ((self.read_mem_raw(addr + 1) as u16) << 8)
-                        | (self.read_mem_raw(addr) as u16);
+                    if addr & 0xff == 0xff {
+                        // TODO check that this works
+                        self.program_counter =
+                            make16!(self.read_mem_raw(addr - 0xff), self.read_mem_raw(addr));
+                    } else {
+                        self.program_counter =
+                            make16!(self.read_mem_raw(addr + 1), self.read_mem_raw(addr));
+                    }
+                    // TODO there is a bug associated with this instruction, implement maybe?
                 }
-                // TODO there is a bug associated with this instruction, implement maybe?
             }
 
+            IN::JSR => {
+                let sr_addr = self.get_next_u16();
+
+                let stack_save = self.program_counter - 1;
+                self.push_stack((stack_save & 0xff) as u8);
+                self.push_stack((stack_save >> 8) as u8);
+                self.program_counter = sr_addr;
+            }
+
+            IN::LDA => {
+                let val = self.fetch_value(ins);
+
+                self.set_zn_flags(val);
+                self.accumulator = val;
+            }
+
+            IN::LDX => {
+                let val = self.fetch_value(ins);
+
+                self.set_zn_flags(val);
+                self.reg_x = val;
+            }
+
+            IN::LDY => {
+                let val = self.fetch_value(ins);
+
+                self.set_zn_flags(val);
+                self.reg_y = val;
+            }
+
+            IN::LSR => {
+                // TODO rmw
+                if ins.mode == AddressingMode::Accumulator {
+                    self.set_flag(Flag::Carry, self.accumulator & 1);
+                    self.accumulator >>= 1;
+                    self.set_zn_flags(self.accumulator);
+                } else {
+                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
+
+                    self.set_flag(Flag::Carry, val & 1);
+                    val >>= 1;
+                    self.set_zn_flags(val);
+                    self.memory[addr as usize] = val;
+                }
+            }
+
+            IN::NOP => {
+                // do nothing
+            }
+
+            IN::ORA => {
+                self.accumulator |= self.fetch_value(ins);
+                self.set_zn_flags(self.accumulator);
+            }
+
+            IN::PHA => {
+                self.push_stack(self.accumulator);
+            }
+
+            IN::PHP => {
+                self.push_stack(self.flags | 0b00110000);
+            }
+
+            IN::PLA => {
+                self.accumulator = self.pull_stack();
+            }
+
+            IN::PLP => {
+                self.flags = self.pull_stack();
+                // TODO the I flag needs to be delayed 1 instr
+            }
+
+            IN::ROL => {
+                if ins.mode == AddressingMode::Accumulator {
+                    let old_c = self.get_flag(Flag::Carry);
+                    self.set_flag(Flag::Carry, self.accumulator >> 7);
+                    self.accumulator <<= 1;
+                    self.accumulator |= old_c;
+                    self.set_zn_flags(self.accumulator);
+                } else {
+                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
+                    let old_c = self.get_flag(Flag::Carry);
+                    self.set_flag(Flag::Carry, val >> 7);
+                    val <<= 1;
+                    val |= old_c;
+                    self.set_zn_flags(val);
+                    self.memory[addr as usize] = val;
+                };
+            }
+
+            IN::ROR => {
+                if ins.mode == AddressingMode::Accumulator {
+                    let old_c = self.get_flag(Flag::Carry);
+                    self.set_flag(Flag::Carry, self.accumulator & 1);
+                    self.accumulator >>= 1;
+                    self.accumulator |= old_c << 7;
+                    self.set_zn_flags(self.accumulator);
+                } else {
+                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
+                    let old_c = self.get_flag(Flag::Carry);
+                    self.set_flag(Flag::Carry, val & 1);
+                    val >>= 1;
+                    val |= old_c << 7;
+                    self.set_zn_flags(val);
+                    self.memory[addr as usize] = val;
+                };
+            }
+
+            IN::RTI => {
+                self.flags = self.pull_stack();
+                let hb = self.pull_stack() as u16;
+                let lb = self.pull_stack() as u16;
+                self.program_counter = (hb << 8) | lb;
+                // TODO check byte order of PC on stack
+            }
+
+            IN::RTS => {
+                let hb = self.pull_stack() as u16;
+                let lb = self.pull_stack() as u16;
+                self.program_counter = (hb << 8) | lb;
+                self.program_counter += 1;
+            }
+
+            // TODO SBC
+            IN::SEC => {
+                self.set_flag(Flag::Carry, 1);
+            }
+
+            IN::SED => {
+                self.set_flag(Flag::Decimal, 1);
+            }
+
+            IN::SEI => {
+                self.set_flag(Flag::Interrupt, 1);
+            }
+
+            // IN::STA => self.fet,
             _ => {
                 todo!()
             }
@@ -332,9 +481,10 @@ impl CPU {
 
     fn get_next_u16(&mut self) -> u16 {
         self.program_counter += 2;
-        let lb = self.memory[(self.program_counter - 2) as usize];
-        let hb = self.memory[(self.program_counter - 1) as usize];
-        ((hb as u16) << 8) | (lb as u16)
+        make16!(
+            self.memory[(self.program_counter - 1) as usize],
+            self.memory[(self.program_counter - 2) as usize]
+        )
     }
 
     pub fn read_mem_raw(&self, address: u16) -> u8 {
@@ -348,14 +498,16 @@ impl CPU {
             ZeroPageX => self.reg_x.wrapping_add(address) as u16,
             ZeroPageY => self.reg_y.wrapping_add(address) as u16,
             IndexedIndirect => {
-                let lo_byte = self.read_mem_raw(self.get_addr_8bit(address, ZeroPageX));
-                let hi_byte = self.read_mem_raw(self.get_addr_8bit(address + 1, ZeroPageX));
-                ((hi_byte as u16) << 8) | (lo_byte as u16)
+                make16!(
+                    self.read_mem_raw(self.get_addr_8bit(address + 1, ZeroPageX)),
+                    self.read_mem_raw(self.get_addr_8bit(address, ZeroPageX))
+                )
             }
             IndirectIndexed => {
-                let lo_byte = self.read_mem_raw(self.get_addr_8bit(address, ZeroPage));
-                let hi_byte = self.read_mem_raw(self.get_addr_8bit(address + 1, ZeroPage));
-                (((hi_byte as u16) << 8) | (lo_byte as u16)) + self.reg_y as u16
+                make16!(
+                    self.read_mem_raw(self.get_addr_8bit(address + 1, ZeroPage)),
+                    self.read_mem_raw(self.get_addr_8bit(address, ZeroPage))
+                ) + (self.reg_y as u16)
             }
             Relative | Immediate | Accumulator | Implicit => {
                 panic!("{:?} does not need memory address", mode)
@@ -370,9 +522,7 @@ impl CPU {
         use AddressingMode as M;
         match mode {
             M::Indirect => {
-                let lo_byte = self.read_mem_raw(address);
-                let hi_byte = self.read_mem_raw(address + 1);
-                ((hi_byte as u16) << 8) | (lo_byte as u16)
+                make16!(self.read_mem_raw(address + 1), self.read_mem_raw(address))
             }
             M::Absolute => address,
             M::AbsoluteX => address + (self.reg_x as u16),
@@ -436,5 +586,28 @@ impl CPU {
     fn set_zn_flags(&mut self, val: u8) {
         self.set_flag(Flag::Zero, if val == 0 { 1 } else { 0 });
         self.set_flag(Flag::Negative, val >> 7);
+    }
+
+    fn inc_sp(&mut self) {
+        self.stack_pointer = self.stack_pointer.wrapping_add(1);
+    }
+
+    fn dec_sp(&mut self) {
+        self.stack_pointer = self.stack_pointer.wrapping_sub(1);
+    }
+
+    fn peek_stack(&self) -> u8 {
+        self.memory[self.stack_pointer as usize + 0x100]
+        // TODO make this a constant
+    }
+
+    fn pull_stack(&mut self) -> u8 {
+        self.inc_sp();
+        self.peek_stack()
+    }
+
+    fn push_stack(&mut self, val: u8) {
+        self.memory[self.stack_pointer as usize + 0x100] = val;
+        self.dec_sp();
     }
 }
