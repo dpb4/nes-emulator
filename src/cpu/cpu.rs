@@ -83,7 +83,12 @@ impl CPU {
         let n = ins.name;
 
         match n {
-            // TODO ADC
+            IN::ADC => {
+                let val = self.fetch_value(ins);
+                self.add_to_acc(val);
+                self.set_zn_flags(self.accumulator);
+            }
+
             IN::AND => {
                 // tested
                 self.accumulator &= self.fetch_value(ins);
@@ -252,7 +257,10 @@ impl CPU {
                 self.set_flag(Flag::Overflow, 0);
             }
 
-            // BRK TODO
+            IN::BRK => {
+                todo!("havent implemented BRK yet");
+            }
+
             IN::CMP => {
                 let val = self.fetch_value(ins);
                 self.set_flag(Flag::Carry, if self.accumulator >= val { 1 } else { 0 });
@@ -454,6 +462,12 @@ impl CPU {
             }
 
             // TODO SBC
+            IN::SBC => {
+                let val = (!self.fetch_value(ins)).wrapping_add(1);
+                self.add_to_acc(val);
+                self.set_zn_flags(self.accumulator);
+            }
+
             IN::SEC => {
                 self.set_flag(Flag::Carry, 1);
             }
@@ -466,11 +480,71 @@ impl CPU {
                 self.set_flag(Flag::Interrupt, 1);
             }
 
-            // IN::STA => self.fet,
-            _ => {
-                todo!()
+            IN::STA => {
+                self.store_value(self.accumulator, ins);
             }
+
+            IN::STX => {
+                self.store_value(self.reg_x, ins);
+            }
+
+            IN::STY => {
+                self.store_value(self.reg_x, ins);
+            }
+
+            IN::TAX => {
+                self.reg_x = self.accumulator;
+                self.set_zn_flags(self.reg_x);
+            }
+
+            IN::TAY => {
+                self.reg_y = self.accumulator;
+                self.set_zn_flags(self.reg_y);
+            }
+
+            IN::TSX => {
+                self.reg_x = self.stack_pointer;
+                self.set_zn_flags(self.reg_x);
+            }
+
+            IN::TXA => {
+                self.accumulator = self.reg_x;
+                self.set_zn_flags(self.accumulator);
+            }
+
+            IN::TXS => {
+                self.stack_pointer = self.reg_x;
+            }
+
+            IN::TYA => {
+                self.accumulator = self.reg_y;
+                self.set_zn_flags(self.accumulator);
+            } // _ => {
+              //     todo!()
+              // }
         };
+    }
+
+    fn add_to_acc(&mut self, val: u8) {
+        let sum = (self.accumulator as u16) + (val as u16) + (self.get_flag(Flag::Carry) as u16);
+
+        let carry = sum > 0xff;
+
+        if carry {
+            self.set_flag(Flag::Carry, 1);
+        } else {
+            self.set_flag(Flag::Carry, 0);
+        }
+
+        let result = sum as u8;
+
+        if (val ^ result) & (result ^ self.accumulator) & 0x80 != 0 {
+            self.set_flag(Flag::Overflow, 1);
+        } else {
+            self.set_flag(Flag::Overflow, 0);
+        }
+
+        self.accumulator = result;
     }
 
     // INCREMENTS PC
@@ -492,7 +566,7 @@ impl CPU {
     }
 
     pub fn get_addr_8bit(&self, address: u8, mode: AddressingMode) -> u16 {
-        use AddressingMode::*;
+        use AddressingMode::*; // TODO
         match mode {
             ZeroPage => address as u16,
             ZeroPageX => self.reg_x.wrapping_add(address) as u16,
@@ -569,7 +643,6 @@ impl CPU {
         let mode = ins.mode;
 
         match mode {
-            // Immediate => self.get_next_u8(),
             M::ZeroPage | M::ZeroPageX | M::ZeroPageY | M::IndexedIndirect | M::IndirectIndexed => {
                 let addr = self.get_next_u8();
                 (self.read_8bit(addr, mode), self.get_addr_8bit(addr, mode))
@@ -577,9 +650,26 @@ impl CPU {
             M::Absolute | M::AbsoluteX | M::AbsoluteY | M::Indirect => {
                 let addr = self.get_next_u16();
                 (self.read_16bit(addr, mode), self.get_addr_16bit(addr, mode))
-                // self.read_16bit(addr, mode)
             }
             _ => panic!("cannot fetch value for {:?}", mode),
+        }
+    }
+
+    fn store_value(&mut self, val: u8, ins: Instruction) {
+        use AddressingMode as M;
+
+        let mode = ins.mode;
+
+        match mode {
+            M::ZeroPage | M::ZeroPageX | M::ZeroPageY | M::IndexedIndirect | M::IndirectIndexed => {
+                let addr = self.get_next_u8();
+                self.memory[self.get_addr_8bit(addr, mode) as usize] = val;
+            }
+            M::Absolute | M::AbsoluteX | M::AbsoluteY | M::Indirect => {
+                let addr = self.get_next_u16();
+                self.memory[self.get_addr_16bit(addr, mode) as usize] = val;
+            }
+            _ => panic!("cannot store value for {:?}", mode),
         }
     }
 

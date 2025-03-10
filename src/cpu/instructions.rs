@@ -159,7 +159,7 @@ pub const BVC: Instruction = Instruction::new(IN::BVC, 0x50, Relative, 2, 2); //
 pub const BVS: Instruction = Instruction::new(IN::BVS, 0x70, Relative, 2, 2); // ex
 
 // BRK: force interrupt
-pub const BRK: Instruction = Instruction::new(IN::BRK, 0x00, Implicit, 1, 7);
+pub const BRK: Instruction = Instruction::new(IN::BRK, 0x00, Implicit, 2, 7);
 
 // BIT: bit test
 pub const BIT_Z: Instruction = Instruction::new(IN::BIT, 0x24, ZeroPage, 2, 3);
