@@ -83,19 +83,114 @@ impl CPU {
         let n = ins.name;
 
         match n {
+            /* ACCESS INSTRUCTIONS =========================================
+            ============================================================= */
+            IN::LDA => {
+                let val = self.fetch_value(ins);
+
+                self.set_zn_flags(val);
+                self.accumulator = val;
+            }
+
+            IN::LDX => {
+                let val = self.fetch_value(ins);
+
+                self.set_zn_flags(val);
+                self.reg_x = val;
+            }
+
+            IN::LDY => {
+                let val = self.fetch_value(ins);
+
+                self.set_zn_flags(val);
+                self.reg_y = val;
+            }
+
+            IN::STA => {
+                self.store_value(self.accumulator, ins);
+            }
+
+            IN::STX => {
+                self.store_value(self.reg_x, ins);
+            }
+
+            IN::STY => {
+                self.store_value(self.reg_y, ins);
+            }
+
+            /* TRANSFER INSTRUCTIONS =======================================
+            ============================================================= */
+            IN::TAX => {
+                self.reg_x = self.accumulator;
+                self.set_zn_flags(self.reg_x);
+            }
+
+            IN::TAY => {
+                self.reg_y = self.accumulator;
+                self.set_zn_flags(self.reg_y);
+            }
+
+            IN::TXA => {
+                self.accumulator = self.reg_x;
+                self.set_zn_flags(self.accumulator);
+            }
+
+            IN::TYA => {
+                self.accumulator = self.reg_y;
+                self.set_zn_flags(self.accumulator);
+            }
+
+            /* ARITHMETIC INSTRUCTIONS =====================================
+            ============================================================= */
             IN::ADC => {
                 let val = self.fetch_value(ins);
                 self.add_to_acc(val);
                 self.set_zn_flags(self.accumulator);
             }
 
-            IN::AND => {
-                // tested
-                self.accumulator &= self.fetch_value(ins);
+            IN::SBC => {
+                let val = (!self.fetch_value(ins)).wrapping_add(1);
+                self.add_to_acc(val);
                 self.set_zn_flags(self.accumulator);
             }
+
+            IN::INC => {
+                // TODO rmw
+                let (val, addr) = self.fetch_value_keep_addr(ins);
+                self.memory[addr as usize] = val.wrapping_add(1);
+                self.set_zn_flags(val.wrapping_add(1));
+            }
+
+            IN::INX => {
+                self.reg_x = self.reg_x.wrapping_add(1);
+                self.set_zn_flags(self.reg_x);
+            }
+
+            IN::INY => {
+                self.reg_y = self.reg_y.wrapping_add(1);
+                self.set_zn_flags(self.reg_y);
+            }
+
+            IN::DEC => {
+                // TODO rmw
+                let (val, addr) = self.fetch_value_keep_addr(ins);
+                self.memory[addr as usize] = val.wrapping_sub(1);
+                self.set_zn_flags(val.wrapping_sub(1));
+            }
+
+            IN::DEX => {
+                self.reg_x = self.reg_x.wrapping_sub(1);
+                self.set_zn_flags(self.reg_x);
+            }
+
+            IN::DEY => {
+                self.reg_y = self.reg_y.wrapping_sub(1);
+                self.set_zn_flags(self.reg_y);
+            }
+
+            /* SHIFT INSTRUCTIONS ==========================================
+            ============================================================= */
             IN::ASL => {
-                // tested
                 if ins.mode == AddressingMode::Accumulator {
                     self.set_flag(Flag::Carry, self.accumulator >> 7);
                     self.accumulator <<= 1;
@@ -110,18 +205,111 @@ impl CPU {
                 // TODO rmw
             }
 
+            IN::LSR => {
+                // TODO rmw
+                if ins.mode == AddressingMode::Accumulator {
+                    self.set_flag(Flag::Carry, self.accumulator & 1);
+                    self.accumulator >>= 1;
+                    self.set_zn_flags(self.accumulator);
+                } else {
+                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
+
+                    self.set_flag(Flag::Carry, val & 1);
+                    val >>= 1;
+                    self.set_zn_flags(val);
+                    self.memory[addr as usize] = val;
+                }
+            }
+
+            IN::ROL => {
+                if ins.mode == AddressingMode::Accumulator {
+                    let old_c = self.get_flag(Flag::Carry);
+                    self.set_flag(Flag::Carry, self.accumulator >> 7);
+                    self.accumulator <<= 1;
+                    self.accumulator |= old_c;
+                    self.set_zn_flags(self.accumulator);
+                } else {
+                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
+                    let old_c = self.get_flag(Flag::Carry);
+                    self.set_flag(Flag::Carry, val >> 7);
+                    val <<= 1;
+                    val |= old_c;
+                    self.set_zn_flags(val);
+                    self.memory[addr as usize] = val;
+                };
+            }
+
+            IN::ROR => {
+                if ins.mode == AddressingMode::Accumulator {
+                    let old_c = self.get_flag(Flag::Carry);
+                    self.set_flag(Flag::Carry, self.accumulator & 1);
+                    self.accumulator >>= 1;
+                    self.accumulator |= old_c << 7;
+                    self.set_zn_flags(self.accumulator);
+                } else {
+                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
+                    let old_c = self.get_flag(Flag::Carry);
+                    self.set_flag(Flag::Carry, val & 1);
+                    val >>= 1;
+                    val |= old_c << 7;
+                    self.set_zn_flags(val);
+                    self.memory[addr as usize] = val;
+                };
+            }
+
+            /* BITWISE INSTRUCTIONS ========================================
+            ============================================================= */
+            IN::AND => {
+                self.accumulator &= self.fetch_value(ins);
+                self.set_zn_flags(self.accumulator);
+            }
+
             IN::BIT => {
-                // tested
                 let val = self.fetch_value(ins);
                 self.set_flag(Flag::Zero, (val & self.accumulator == 0) as u8);
                 self.set_flag(Flag::Overflow, val >> 6 & 1);
                 self.set_flag(Flag::Negative, val >> 7);
             }
 
-            IN::BCS => {
-                if self.get_flag(Flag::Carry) == 1 {
+            IN::ORA => {
+                self.accumulator |= self.fetch_value(ins);
+                self.set_zn_flags(self.accumulator);
+            }
+
+            IN::EOR => {
+                self.accumulator ^= self.fetch_value(ins);
+                self.set_zn_flags(self.accumulator);
+            }
+
+            /* COMPARE INSTRUCTIONS ========================================
+            ============================================================= */
+            IN::CMP => {
+                let val = self.fetch_value(ins);
+                self.set_flag(Flag::Carry, if self.accumulator >= val { 1 } else { 0 });
+                self.set_flag(Flag::Zero, if self.accumulator == val { 1 } else { 0 });
+                self.set_flag(Flag::Negative, self.accumulator.wrapping_sub(val) >> 7);
+            }
+
+            IN::CPX => {
+                let val = self.fetch_value(ins);
+                self.set_flag(Flag::Carry, if self.reg_x >= val { 1 } else { 0 });
+                self.set_flag(Flag::Zero, if self.reg_x == val { 1 } else { 0 });
+                self.set_flag(Flag::Negative, self.reg_x.wrapping_sub(val) >> 7);
+            }
+
+            IN::CPY => {
+                let val = self.fetch_value(ins);
+                self.set_flag(Flag::Carry, if self.reg_y >= val { 1 } else { 0 });
+                self.set_flag(Flag::Zero, if self.reg_y == val { 1 } else { 0 });
+                self.set_flag(Flag::Negative, self.reg_y.wrapping_sub(val) >> 7);
+            }
+
+            /* BRANCH INSTRUCTIONS =========================================
+            ============================================================= */
+            IN::BCC => {
+                if self.get_flag(Flag::Carry) == 0 {
                     self.cycle_count += 1;
-                    // TODO check that this works
+                    // TODO find better way?
                     let byte = self.get_next_u8();
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
@@ -134,10 +322,10 @@ impl CPU {
                 }
             }
 
-            IN::BCC => {
-                if self.get_flag(Flag::Carry) == 0 {
+            IN::BCS => {
+                if self.get_flag(Flag::Carry) == 1 {
                     self.cycle_count += 1;
-                    // TODO find better way?
+                    // TODO check that this works
                     let byte = self.get_next_u8();
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
@@ -180,8 +368,8 @@ impl CPU {
                 }
             }
 
-            IN::BMI => {
-                if self.get_flag(Flag::Negative) == 1 {
+            IN::BPL => {
+                if self.get_flag(Flag::Negative) == 0 {
                     self.cycle_count += 1;
                     let byte = self.get_next_u8();
                     let branch = if byte & 0b10000000 != 0 {
@@ -195,8 +383,8 @@ impl CPU {
                 }
             }
 
-            IN::BPL => {
-                if self.get_flag(Flag::Negative) == 0 {
+            IN::BMI => {
+                if self.get_flag(Flag::Negative) == 1 {
                     self.cycle_count += 1;
                     let byte = self.get_next_u8();
                     let branch = if byte & 0b10000000 != 0 {
@@ -240,87 +428,8 @@ impl CPU {
                 }
             }
 
-            IN::CLC => {
-                self.set_flag(Flag::Carry, 0);
-            }
-
-            IN::CLD => {
-                self.set_flag(Flag::Decimal, 0);
-            }
-
-            IN::CLI => {
-                // TODO this needs to be delayed by 1 instruction
-                self.set_flag(Flag::Interrupt, 0);
-            }
-
-            IN::CLV => {
-                self.set_flag(Flag::Overflow, 0);
-            }
-
-            IN::BRK => {
-                todo!("havent implemented BRK yet");
-            }
-
-            IN::CMP => {
-                let val = self.fetch_value(ins);
-                self.set_flag(Flag::Carry, if self.accumulator >= val { 1 } else { 0 });
-                self.set_flag(Flag::Zero, if self.accumulator == val { 1 } else { 0 });
-                self.set_flag(Flag::Negative, self.accumulator.wrapping_sub(val) >> 7);
-            }
-
-            IN::CPX => {
-                let val = self.fetch_value(ins);
-                self.set_flag(Flag::Carry, if self.reg_x >= val { 1 } else { 0 });
-                self.set_flag(Flag::Zero, if self.reg_x == val { 1 } else { 0 });
-                self.set_flag(Flag::Negative, self.reg_x.wrapping_sub(val) >> 7);
-            }
-
-            IN::CPY => {
-                let val = self.fetch_value(ins);
-                self.set_flag(Flag::Carry, if self.reg_y >= val { 1 } else { 0 });
-                self.set_flag(Flag::Zero, if self.reg_y == val { 1 } else { 0 });
-                self.set_flag(Flag::Negative, self.reg_y.wrapping_sub(val) >> 7);
-            }
-
-            IN::DEC => {
-                // TODO rmw
-                let (val, addr) = self.fetch_value_keep_addr(ins);
-                self.memory[addr as usize] = val.wrapping_sub(1);
-                self.set_zn_flags(val.wrapping_sub(1));
-            }
-
-            IN::DEX => {
-                self.reg_x = self.reg_x.wrapping_sub(1);
-                self.set_zn_flags(self.reg_x);
-            }
-
-            IN::DEY => {
-                self.reg_y = self.reg_y.wrapping_sub(1);
-                self.set_zn_flags(self.reg_y);
-            }
-
-            IN::EOR => {
-                self.accumulator ^= self.fetch_value(ins);
-                self.set_zn_flags(self.accumulator);
-            }
-
-            IN::INC => {
-                // TODO rmw
-                let (val, addr) = self.fetch_value_keep_addr(ins);
-                self.memory[addr as usize] = val.wrapping_add(1);
-                self.set_zn_flags(val.wrapping_add(1));
-            }
-
-            IN::INX => {
-                self.reg_x = self.reg_x.wrapping_add(1);
-                self.set_zn_flags(self.reg_x);
-            }
-
-            IN::INY => {
-                self.reg_y = self.reg_y.wrapping_add(1);
-                self.set_zn_flags(self.reg_y);
-            }
-
+            /* JUMP INSTRUCTIONS ===========================================
+            ============================================================= */
             IN::JMP => {
                 if ins.mode == AddressingMode::Absolute {
                     self.program_counter = self.get_next_u16();
@@ -347,50 +456,34 @@ impl CPU {
                 self.program_counter = sr_addr;
             }
 
-            IN::LDA => {
-                let val = self.fetch_value(ins);
-
-                self.set_zn_flags(val);
-                self.accumulator = val;
+            IN::RTI => {
+                self.flags = self.pull_stack();
+                let hb = self.pull_stack() as u16;
+                let lb = self.pull_stack() as u16;
+                self.program_counter = (hb << 8) | lb;
+                // TODO check byte order of PC on stack
             }
 
-            IN::LDX => {
-                let val = self.fetch_value(ins);
-
-                self.set_zn_flags(val);
-                self.reg_x = val;
+            IN::RTS => {
+                let hb = self.pull_stack() as u16;
+                let lb = self.pull_stack() as u16;
+                self.program_counter = (hb << 8) | lb;
+                self.program_counter += 1;
             }
 
-            IN::LDY => {
-                let val = self.fetch_value(ins);
-
-                self.set_zn_flags(val);
-                self.reg_y = val;
+            IN::BRK => {
+                todo!("havent implemented BRK yet");
             }
 
-            IN::LSR => {
-                // TODO rmw
-                if ins.mode == AddressingMode::Accumulator {
-                    self.set_flag(Flag::Carry, self.accumulator & 1);
-                    self.accumulator >>= 1;
-                    self.set_zn_flags(self.accumulator);
-                } else {
-                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
-
-                    self.set_flag(Flag::Carry, val & 1);
-                    val >>= 1;
-                    self.set_zn_flags(val);
-                    self.memory[addr as usize] = val;
-                }
+            /* STACK INSTRUCTIONS ==========================================
+            ============================================================= */
+            IN::TXS => {
+                self.stack_pointer = self.reg_x;
             }
 
-            IN::NOP => {
-                // do nothing
-            }
-
-            IN::ORA => {
-                self.accumulator |= self.fetch_value(ins);
-                self.set_zn_flags(self.accumulator);
+            IN::TSX => {
+                self.reg_x = self.stack_pointer;
+                self.set_zn_flags(self.reg_x);
             }
 
             IN::PHA => {
@@ -410,62 +503,23 @@ impl CPU {
                 // TODO the I flag needs to be delayed 1 instr
             }
 
-            IN::ROL => {
-                if ins.mode == AddressingMode::Accumulator {
-                    let old_c = self.get_flag(Flag::Carry);
-                    self.set_flag(Flag::Carry, self.accumulator >> 7);
-                    self.accumulator <<= 1;
-                    self.accumulator |= old_c;
-                    self.set_zn_flags(self.accumulator);
-                } else {
-                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
-                    let old_c = self.get_flag(Flag::Carry);
-                    self.set_flag(Flag::Carry, val >> 7);
-                    val <<= 1;
-                    val |= old_c;
-                    self.set_zn_flags(val);
-                    self.memory[addr as usize] = val;
-                };
+            /* FLAG INSTRUCTIONS ===========================================
+            ============================================================= */
+            IN::CLC => {
+                self.set_flag(Flag::Carry, 0);
             }
 
-            IN::ROR => {
-                if ins.mode == AddressingMode::Accumulator {
-                    let old_c = self.get_flag(Flag::Carry);
-                    self.set_flag(Flag::Carry, self.accumulator & 1);
-                    self.accumulator >>= 1;
-                    self.accumulator |= old_c << 7;
-                    self.set_zn_flags(self.accumulator);
-                } else {
-                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
-                    let old_c = self.get_flag(Flag::Carry);
-                    self.set_flag(Flag::Carry, val & 1);
-                    val >>= 1;
-                    val |= old_c << 7;
-                    self.set_zn_flags(val);
-                    self.memory[addr as usize] = val;
-                };
+            IN::CLD => {
+                self.set_flag(Flag::Decimal, 0);
             }
 
-            IN::RTI => {
-                self.flags = self.pull_stack();
-                let hb = self.pull_stack() as u16;
-                let lb = self.pull_stack() as u16;
-                self.program_counter = (hb << 8) | lb;
-                // TODO check byte order of PC on stack
+            IN::CLI => {
+                // TODO this needs to be delayed by 1 instruction
+                self.set_flag(Flag::Interrupt, 0);
             }
 
-            IN::RTS => {
-                let hb = self.pull_stack() as u16;
-                let lb = self.pull_stack() as u16;
-                self.program_counter = (hb << 8) | lb;
-                self.program_counter += 1;
-            }
-
-            // TODO SBC
-            IN::SBC => {
-                let val = (!self.fetch_value(ins)).wrapping_add(1);
-                self.add_to_acc(val);
-                self.set_zn_flags(self.accumulator);
+            IN::CLV => {
+                self.set_flag(Flag::Overflow, 0);
             }
 
             IN::SEC => {
@@ -480,48 +534,11 @@ impl CPU {
                 self.set_flag(Flag::Interrupt, 1);
             }
 
-            IN::STA => {
-                self.store_value(self.accumulator, ins);
+            /* OTHER INSTRUCTIONS ==========================================
+            ============================================================= */
+            IN::NOP => {
+                // do nothing
             }
-
-            IN::STX => {
-                self.store_value(self.reg_x, ins);
-            }
-
-            IN::STY => {
-                self.store_value(self.reg_y, ins);
-            }
-
-            IN::TAX => {
-                self.reg_x = self.accumulator;
-                self.set_zn_flags(self.reg_x);
-            }
-
-            IN::TAY => {
-                self.reg_y = self.accumulator;
-                self.set_zn_flags(self.reg_y);
-            }
-
-            IN::TSX => {
-                self.reg_x = self.stack_pointer;
-                self.set_zn_flags(self.reg_x);
-            }
-
-            IN::TXA => {
-                self.accumulator = self.reg_x;
-                self.set_zn_flags(self.accumulator);
-            }
-
-            IN::TXS => {
-                self.stack_pointer = self.reg_x;
-            }
-
-            IN::TYA => {
-                self.accumulator = self.reg_y;
-                self.set_zn_flags(self.accumulator);
-            } // _ => {
-              //     todo!()
-              // }
         };
     }
 

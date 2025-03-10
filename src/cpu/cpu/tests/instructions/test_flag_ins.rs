@@ -50,3 +50,33 @@ fn test_clv() {
     assert_eq!(cpu.get_flag(Flag::Overflow), 0);
     assert_eq!(cpu.get_flag(Flag::Carry), 1);
 }
+
+#[test]
+fn test_sec() {
+    let mut cpu = CPU::new();
+    cpu.flags = 0;
+
+    cpu.execute(IN::SEC);
+
+    assert_eq!(cpu.flags, 0b00000001);
+}
+
+#[test]
+fn test_sei() {
+    let mut cpu = CPU::new();
+    cpu.flags = 0;
+
+    cpu.execute(IN::SEI);
+
+    assert_eq!(cpu.flags, 0b00000100);
+}
+
+#[test]
+fn test_sed() {
+    let mut cpu = CPU::new();
+    cpu.flags = 0;
+
+    cpu.execute(IN::SED);
+
+    assert_eq!(cpu.flags, 0b00001000);
+}

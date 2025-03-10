@@ -1,7 +1,7 @@
 // AND, ORA, EOR, BIT
 
 use crate::cpu::{
-    cpu::tests::{get_example_byte, set_byte_example, set_multiple_bytes, set_single_byte},
+    cpu::tests::{get_example_byte, set_byte_example, set_multiple_bytes},
     instructions, Flag, CPU,
 };
 use instructions as IN;
@@ -89,4 +89,31 @@ fn test_eor() {
     assert_eq!(cpu.get_flag(Flag::Zero), 1);
     assert_eq!(cpu.get_flag(Flag::Negative), 0);
     assert_eq!(cpu.accumulator, !0xff);
+}
+#[test]
+fn test_ora() {
+    let mut cpu = CPU::new();
+
+    set_multiple_bytes(&mut cpu, 0, &vec![0, 0xf0, 0, 0x00, 0, 0x00]);
+
+    cpu.accumulator = 0xab;
+    cpu.execute(IN::ORA_IM);
+
+    assert_eq!(cpu.get_flag(Flag::Zero), 0);
+    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.accumulator, 0xfb);
+
+    cpu.accumulator = 0xab;
+    cpu.execute(IN::ORA_IM);
+
+    assert_eq!(cpu.get_flag(Flag::Zero), 0);
+    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.accumulator, 0xab);
+
+    cpu.accumulator = 0x0;
+    cpu.execute(IN::ORA_IM);
+
+    assert_eq!(cpu.get_flag(Flag::Zero), 1);
+    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.accumulator, 0x00);
 }
