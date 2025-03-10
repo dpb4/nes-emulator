@@ -3,6 +3,143 @@ use crate::cpu::{cpu::tests::set_multiple_bytes, instructions, Flag, CPU};
 use instructions as IN;
 
 #[test]
+fn test_adc() {
+    let mut cpu = CPU::new();
+
+    set_multiple_bytes(
+        &mut cpu,
+        0,
+        &vec![
+            0, 0x10, 0, 0x50, 0, 0x90, 0, 0xd0, 0, 0x10, 0, 0x50, 0, 0x90, 0, 0xd0,
+        ],
+    );
+
+    cpu.flags = 0;
+    cpu.accumulator = 0x50;
+    cpu.execute(IN::ADC_IM);
+    assert_eq!(cpu.accumulator, 0x60);
+    assert_eq!(cpu.flags, 0b00000000);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0x50;
+    cpu.execute(IN::ADC_IM);
+    assert_eq!(cpu.accumulator, 0xa0);
+    assert_eq!(cpu.flags, 0b11000000);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0x50;
+    cpu.execute(IN::ADC_IM);
+    assert_eq!(cpu.accumulator, 0xe0);
+    assert_eq!(cpu.flags, 0b10000000);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0x50;
+    cpu.execute(IN::ADC_IM);
+    assert_eq!(cpu.accumulator, 0x20);
+    assert_eq!(cpu.flags, 0b00000001);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0x50;
+    cpu.execute(IN::ADC_IM);
+    assert_eq!(cpu.accumulator, 0x60);
+    assert_eq!(cpu.flags, 0b00000000);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0xd0;
+    cpu.execute(IN::ADC_IM);
+    assert_eq!(cpu.accumulator, 0x20);
+    assert_eq!(cpu.flags, 0b00000001);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0xd0;
+    cpu.execute(IN::ADC_IM);
+    assert_eq!(cpu.accumulator, 0x60);
+    assert_eq!(cpu.flags, 0b01000001);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0xd0;
+    cpu.execute(IN::ADC_IM);
+    assert_eq!(cpu.accumulator, 0xa0);
+    assert_eq!(cpu.flags, 0b10000001);
+}
+
+#[test]
+fn test_sbc() {
+    let mut cpu = CPU::new();
+
+    set_multiple_bytes(
+        &mut cpu,
+        0,
+        &vec![
+            0,
+            !0x10 + 1,
+            0,
+            !0x50 + 1,
+            0,
+            !0x90 + 1,
+            0,
+            !0xd0 + 1,
+            0,
+            !0x10 + 1,
+            0,
+            !0x50 + 1,
+            0,
+            !0x90 + 1,
+            0,
+            !0xd0 + 1,
+        ],
+    );
+
+    cpu.flags = 0;
+    cpu.accumulator = 0x50;
+    cpu.execute(IN::SBC_IM);
+    assert_eq!(cpu.accumulator, 0x60);
+    assert_eq!(cpu.flags, 0b00000000);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0x50;
+    cpu.execute(IN::SBC_IM);
+    assert_eq!(cpu.accumulator, 0xa0);
+    assert_eq!(cpu.flags, 0b11000000);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0x50;
+    cpu.execute(IN::SBC_IM);
+    assert_eq!(cpu.accumulator, 0xe0);
+    assert_eq!(cpu.flags, 0b10000000);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0x50;
+    cpu.execute(IN::SBC_IM);
+    assert_eq!(cpu.accumulator, 0x20);
+    assert_eq!(cpu.flags, 0b00000001);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0x50;
+    cpu.execute(IN::SBC_IM);
+    assert_eq!(cpu.accumulator, 0x60);
+    assert_eq!(cpu.flags, 0b00000000);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0xd0;
+    cpu.execute(IN::SBC_IM);
+    assert_eq!(cpu.accumulator, 0x20);
+    assert_eq!(cpu.flags, 0b00000001);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0xd0;
+    cpu.execute(IN::SBC_IM);
+    assert_eq!(cpu.accumulator, 0x60);
+    assert_eq!(cpu.flags, 0b01000001);
+
+    cpu.flags = 0;
+    cpu.accumulator = 0xd0;
+    cpu.execute(IN::SBC_IM);
+    assert_eq!(cpu.accumulator, 0xa0);
+    assert_eq!(cpu.flags, 0b10000001);
+}
+
+#[test]
 fn test_inc() {
     let mut cpu = CPU::new();
     set_multiple_bytes(

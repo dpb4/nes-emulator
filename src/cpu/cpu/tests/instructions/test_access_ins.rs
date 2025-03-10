@@ -3,7 +3,7 @@ use crate::cpu::{cpu::tests::set_multiple_bytes, instructions, Flag, CPU};
 use instructions as IN;
 
 #[test]
-pub fn test_lda() {
+fn test_lda() {
     let mut cpu = CPU::new();
 
     set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0, 0x00, 0, 0x05]);
@@ -25,7 +25,7 @@ pub fn test_lda() {
 }
 
 #[test]
-pub fn test_ldx() {
+fn test_ldx() {
     let mut cpu = CPU::new();
 
     set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0, 0x00, 0, 0x05]);
@@ -47,7 +47,7 @@ pub fn test_ldx() {
 }
 
 #[test]
-pub fn test_ldy() {
+fn test_ldy() {
     let mut cpu = CPU::new();
 
     set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0, 0x00, 0, 0x05]);
@@ -69,7 +69,7 @@ pub fn test_ldy() {
 }
 
 #[test]
-pub fn test_sta() {
+fn test_sta() {
     let mut cpu = CPU::new();
 
     set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0xcd, 0, 0x33]);
@@ -84,7 +84,7 @@ pub fn test_sta() {
 }
 
 #[test]
-pub fn test_stx() {
+fn test_stx() {
     let mut cpu = CPU::new();
 
     set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0xcd, 0, 0x33]);
@@ -99,7 +99,7 @@ pub fn test_stx() {
 }
 
 #[test]
-pub fn test_sty() {
+fn test_sty() {
     let mut cpu = CPU::new();
 
     set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0xcd, 0, 0x33]);
