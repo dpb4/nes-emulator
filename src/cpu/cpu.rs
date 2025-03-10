@@ -489,7 +489,7 @@ impl CPU {
             }
 
             IN::STY => {
-                self.store_value(self.reg_x, ins);
+                self.store_value(self.reg_y, ins);
             }
 
             IN::TAX => {
