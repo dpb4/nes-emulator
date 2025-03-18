@@ -52,7 +52,7 @@ impl CPU {
             reg_x: 0,
             reg_y: 0,
             accumulator: 0,
-            stack_pointer: 0,
+            stack_pointer: 255,
             flags: 0,
             program_counter: 0,
             cycle_count: 0,
@@ -436,14 +436,12 @@ impl CPU {
                 } else {
                     let addr = self.get_next_u16();
                     if addr & 0xff == 0xff {
-                        // TODO check that this works
                         self.program_counter =
                             make16!(self.read_mem_raw(addr - 0xff), self.read_mem_raw(addr));
                     } else {
                         self.program_counter =
                             make16!(self.read_mem_raw(addr + 1), self.read_mem_raw(addr));
                     }
-                    // TODO there is a bug associated with this instruction, implement maybe?
                 }
             }
 
@@ -451,23 +449,22 @@ impl CPU {
                 let sr_addr = self.get_next_u16();
 
                 let stack_save = self.program_counter - 1;
-                self.push_stack((stack_save & 0xff) as u8);
                 self.push_stack((stack_save >> 8) as u8);
+                self.push_stack((stack_save & 0xff) as u8);
                 self.program_counter = sr_addr;
             }
 
             IN::RTI => {
                 self.flags = self.pull_stack();
-                let hb = self.pull_stack() as u16;
                 let lb = self.pull_stack() as u16;
-                self.program_counter = (hb << 8) | lb;
-                // TODO check byte order of PC on stack
+                let hb = self.pull_stack() as u16;
+                self.program_counter = make16!(hb, lb);
             }
 
             IN::RTS => {
-                let hb = self.pull_stack() as u16;
                 let lb = self.pull_stack() as u16;
-                self.program_counter = (hb << 8) | lb;
+                let hb = self.pull_stack() as u16;
+                self.program_counter = make16!(hb, lb);
                 self.program_counter += 1;
             }
 
