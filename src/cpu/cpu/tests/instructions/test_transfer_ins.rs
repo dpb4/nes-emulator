@@ -1,5 +1,5 @@
 // TAX, TXA, TAY, TYA
-use crate::cpu::{cpu::tests::set_multiple_bytes, instructions, Flag, CPU};
+use crate::cpu::{instructions, Flag, CPU};
 use instructions as IN;
 
 #[test]

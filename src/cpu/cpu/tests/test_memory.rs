@@ -8,9 +8,9 @@ fn test_set_byte() {
     set_single_byte(&mut cpu, 0x1110, 35);
     set_single_byte(&mut cpu, 0x1111, 15);
     set_single_byte(&mut cpu, 0x1112, 25);
-    assert_eq!(cpu.read_mem_raw(0x1110), 35);
-    assert_eq!(cpu.read_mem_raw(0x1111), 15);
-    assert_eq!(cpu.read_mem_raw(0x1112), 25);
+    assert_eq!(cpu.memory.read(0x1110), 35);
+    assert_eq!(cpu.memory.read(0x1111), 15);
+    assert_eq!(cpu.memory.read(0x1112), 25);
 }
 
 #[test]
@@ -22,7 +22,7 @@ fn test_set_bytes() {
     set_multiple_bytes(&mut cpu, 500, &bytes);
 
     for i in 0..bytes.len() {
-        assert_eq!(cpu.read_mem_raw(500 + i as u16), bytes[i]);
+        assert_eq!(cpu.memory.read(500 + i as u16), bytes[i]);
     }
 }
 
@@ -33,7 +33,7 @@ fn test_read_everything() {
     for i in 0..0xffff_u16 {
         let val = i.wrapping_mul(1793) as u8;
         set_single_byte(&mut cpu, i, val);
-        assert_eq!(cpu.read_mem_raw(i), val);
+        assert_eq!(cpu.memory.read(i), val);
     }
 }
 

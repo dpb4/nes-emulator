@@ -152,22 +152,22 @@ fn test_inc() {
     cpu.execute(IN::INC_A);
     assert_eq!(cpu.get_flag(Flag::Zero), 0);
     assert_eq!(cpu.get_flag(Flag::Negative), 0);
-    assert_eq!(cpu.memory[0x1234], 0x12);
+    assert_eq!(cpu.memory.read(0x1234), 0x12);
 
     cpu.execute(IN::INC_A);
     assert_eq!(cpu.get_flag(Flag::Zero), 0);
     assert_eq!(cpu.get_flag(Flag::Negative), 0);
-    assert_eq!(cpu.memory[0x1235], 0x1);
+    assert_eq!(cpu.memory.read(0x1235), 0x1);
 
     cpu.execute(IN::INC_A);
     assert_eq!(cpu.get_flag(Flag::Zero), 0);
     assert_eq!(cpu.get_flag(Flag::Negative), 1);
-    assert_eq!(cpu.memory[0x1236], 0x89);
+    assert_eq!(cpu.memory.read(0x1236), 0x89);
 
     cpu.execute(IN::INC_A);
     assert_eq!(cpu.get_flag(Flag::Zero), 1);
     assert_eq!(cpu.get_flag(Flag::Negative), 0);
-    assert_eq!(cpu.memory[0x1237], 0);
+    assert_eq!(cpu.memory.read(0x1237), 0);
 }
 
 #[test]
@@ -249,22 +249,22 @@ fn test_dec() {
     cpu.execute(IN::DEC_A);
     assert_eq!(cpu.get_flag(Flag::Zero), 0);
     assert_eq!(cpu.get_flag(Flag::Negative), 0);
-    assert_eq!(cpu.memory[0x1234], 0x10);
+    assert_eq!(cpu.memory.read(0x1234), 0x10);
 
     cpu.execute(IN::DEC_A);
     assert_eq!(cpu.get_flag(Flag::Zero), 0);
     assert_eq!(cpu.get_flag(Flag::Negative), 1);
-    assert_eq!(cpu.memory[0x1235], 0xff);
+    assert_eq!(cpu.memory.read(0x1235), 0xff);
 
     cpu.execute(IN::DEC_A);
     assert_eq!(cpu.get_flag(Flag::Zero), 1);
     assert_eq!(cpu.get_flag(Flag::Negative), 0);
-    assert_eq!(cpu.memory[0x1236], 0x0);
+    assert_eq!(cpu.memory.read(0x1236), 0x0);
 
     cpu.execute(IN::DEC_A);
     assert_eq!(cpu.get_flag(Flag::Zero), 0);
     assert_eq!(cpu.get_flag(Flag::Negative), 1);
-    assert_eq!(cpu.memory[0x1237], 0xfe);
+    assert_eq!(cpu.memory.read(0x1237), 0xfe);
 }
 
 #[test]

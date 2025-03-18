@@ -6,7 +6,7 @@ pub mod test_flags;
 pub mod test_memory;
 
 pub fn set_single_byte(cpu: &mut CPU, address: u16, byte: u8) {
-    cpu.memory[address as usize] = byte;
+    cpu.memory.write(address, byte);
 }
 
 pub fn set_multiple_bytes(cpu: &mut CPU, start_address: u16, bytes: &Vec<u8>) {

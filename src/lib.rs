@@ -1,6 +1,6 @@
-pub mod asm_parser;
 pub mod cpu;
+pub mod memory;
 
-fn main() {
+fn _main() {
     let _c = cpu::CPU::new();
 }

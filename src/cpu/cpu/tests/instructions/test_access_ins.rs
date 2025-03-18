@@ -76,11 +76,11 @@ fn test_sta() {
 
     cpu.accumulator = 0xbc;
     cpu.execute(IN::STA_A);
-    assert_eq!(cpu.memory[0xcdab as usize], 0xbc);
+    assert_eq!(cpu.memory.read(0xcdab), 0xbc);
 
     cpu.accumulator = 0xde;
     cpu.execute(IN::STA_Z);
-    assert_eq!(cpu.memory[0x33 as usize], 0xde);
+    assert_eq!(cpu.memory.read(0x33), 0xde);
 }
 
 #[test]
@@ -91,11 +91,11 @@ fn test_stx() {
 
     cpu.reg_x = 0xbc;
     cpu.execute(IN::STX_A);
-    assert_eq!(cpu.memory[0xcdab as usize], 0xbc);
+    assert_eq!(cpu.memory.read(0xcdab), 0xbc);
 
     cpu.reg_x = 0xde;
     cpu.execute(IN::STX_Z);
-    assert_eq!(cpu.memory[0x33 as usize], 0xde);
+    assert_eq!(cpu.memory.read(0x33), 0xde);
 }
 
 #[test]
@@ -106,9 +106,9 @@ fn test_sty() {
 
     cpu.reg_y = 0xbc;
     cpu.execute(IN::STY_A);
-    assert_eq!(cpu.memory[0xcdab as usize], 0xbc);
+    assert_eq!(cpu.memory.read(0xcdab), 0xbc);
 
     cpu.reg_y = 0xde;
     cpu.execute(IN::STY_Z);
-    assert_eq!(cpu.memory[0x33 as usize], 0xde);
+    assert_eq!(cpu.memory.read(0x33), 0xde);
 }

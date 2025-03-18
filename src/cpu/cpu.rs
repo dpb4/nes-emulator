@@ -1,9 +1,9 @@
 #![allow(non_snake_case)]
 
+use crate::memory::memory_bus::MemoryBus;
+
 use super::instructions::{AddressingMode, Instruction};
 
-// #[path = "./tests.rs"]
-// mod super::tests;
 #[cfg(test)]
 mod tests;
 
@@ -12,6 +12,9 @@ macro_rules! make16 {
         (($hi as u16) << 8) | ($lo as u16)
     };
 }
+
+const STACK_START: u16 = 0x100;
+
 #[derive(Debug)]
 pub struct CPU {
     pub reg_x: u8,
@@ -21,7 +24,8 @@ pub struct CPU {
     pub flags: u8,
     pub program_counter: u16,
     pub cycle_count: u32,
-    memory: [u8; 0xffff],
+    memory: MemoryBus,
+    // memory: [u8; 0xffff],
 }
 
 pub enum Flag {
@@ -56,7 +60,7 @@ impl CPU {
             flags: 0,
             program_counter: 0,
             cycle_count: 0,
-            memory: [0; 0xffff],
+            memory: MemoryBus::new(),
         }
     }
 
@@ -157,7 +161,7 @@ impl CPU {
             IN::INC => {
                 // TODO rmw
                 let (val, addr) = self.fetch_value_keep_addr(ins);
-                self.memory[addr as usize] = val.wrapping_add(1);
+                self.memory.write(addr, val.wrapping_add(1));
                 self.set_zn_flags(val.wrapping_add(1));
             }
 
@@ -174,7 +178,7 @@ impl CPU {
             IN::DEC => {
                 // TODO rmw
                 let (val, addr) = self.fetch_value_keep_addr(ins);
-                self.memory[addr as usize] = val.wrapping_sub(1);
+                self.memory.write(addr, val.wrapping_sub(1));
                 self.set_zn_flags(val.wrapping_sub(1));
             }
 
@@ -200,7 +204,7 @@ impl CPU {
                     self.set_flag(Flag::Carry, val >> 7);
                     val <<= 1;
                     self.set_zn_flags(val);
-                    self.memory[addr as usize] = val;
+                    self.memory.write(addr, val);
                 }
                 // TODO rmw
             }
@@ -217,7 +221,7 @@ impl CPU {
                     self.set_flag(Flag::Carry, val & 1);
                     val >>= 1;
                     self.set_zn_flags(val);
-                    self.memory[addr as usize] = val;
+                    self.memory.write(addr, val);
                 }
             }
 
@@ -235,7 +239,7 @@ impl CPU {
                     val <<= 1;
                     val |= old_c;
                     self.set_zn_flags(val);
-                    self.memory[addr as usize] = val;
+                    self.memory.write(addr, val);
                 };
             }
 
@@ -253,7 +257,7 @@ impl CPU {
                     val >>= 1;
                     val |= old_c << 7;
                     self.set_zn_flags(val);
-                    self.memory[addr as usize] = val;
+                    self.memory.write(addr, val);
                 };
             }
 
@@ -437,10 +441,10 @@ impl CPU {
                     let addr = self.get_next_u16();
                     if addr & 0xff == 0xff {
                         self.program_counter =
-                            make16!(self.read_mem_raw(addr - 0xff), self.read_mem_raw(addr));
+                            make16!(self.memory.read(addr - 0xff), self.memory.read(addr));
                     } else {
                         self.program_counter =
-                            make16!(self.read_mem_raw(addr + 1), self.read_mem_raw(addr));
+                            make16!(self.memory.read(addr + 1), self.memory.read(addr));
                     }
                 }
             }
@@ -564,20 +568,20 @@ impl CPU {
     // INCREMENTS PC
     fn get_next_u8(&mut self) -> u8 {
         self.program_counter += 1;
-        self.memory[(self.program_counter - 1) as usize]
+        self.memory.read(self.program_counter - 1)
     }
 
     fn get_next_u16(&mut self) -> u16 {
         self.program_counter += 2;
         make16!(
-            self.memory[(self.program_counter - 1) as usize],
-            self.memory[(self.program_counter - 2) as usize]
+            self.memory.read(self.program_counter - 1),
+            self.memory.read(self.program_counter - 2)
         )
     }
 
-    pub fn read_mem_raw(&self, address: u16) -> u8 {
-        return self.memory[address as usize];
-    }
+    // pub fn read_mem_raw(&self, address: u16) -> u8 {
+    //     return self.memory[address as usize];
+    // }
 
     pub fn get_addr_8bit(&self, address: u8, mode: AddressingMode) -> u16 {
         use AddressingMode::*; // TODO
@@ -587,14 +591,14 @@ impl CPU {
             ZeroPageY => self.reg_y.wrapping_add(address) as u16,
             IndexedIndirect => {
                 make16!(
-                    self.read_mem_raw(self.get_addr_8bit(address + 1, ZeroPageX)),
-                    self.read_mem_raw(self.get_addr_8bit(address, ZeroPageX))
+                    self.memory.read(self.get_addr_8bit(address + 1, ZeroPageX)),
+                    self.memory.read(self.get_addr_8bit(address, ZeroPageX))
                 )
             }
             IndirectIndexed => {
                 make16!(
-                    self.read_mem_raw(self.get_addr_8bit(address + 1, ZeroPage)),
-                    self.read_mem_raw(self.get_addr_8bit(address, ZeroPage))
+                    self.memory.read(self.get_addr_8bit(address + 1, ZeroPage)),
+                    self.memory.read(self.get_addr_8bit(address, ZeroPage))
                 ) + (self.reg_y as u16)
             }
             Relative | Immediate | Accumulator | Implicit => {
@@ -610,7 +614,7 @@ impl CPU {
         use AddressingMode as M;
         match mode {
             M::Indirect => {
-                make16!(self.read_mem_raw(address + 1), self.read_mem_raw(address))
+                make16!(self.memory.read(address + 1), self.memory.read(address))
             }
             M::Absolute => address,
             M::AbsoluteX => address + (self.reg_x as u16),
@@ -625,11 +629,11 @@ impl CPU {
     }
 
     pub fn read_8bit(&self, address: u8, mode: AddressingMode) -> u8 {
-        self.read_mem_raw(self.get_addr_8bit(address, mode))
+        self.memory.read(self.get_addr_8bit(address, mode))
     }
 
     pub fn read_16bit(&self, address: u16, mode: AddressingMode) -> u8 {
-        self.read_mem_raw(self.get_addr_16bit(address, mode))
+        self.memory.read(self.get_addr_16bit(address, mode))
     }
 
     fn fetch_value(&mut self, ins: Instruction) -> u8 {
@@ -677,11 +681,11 @@ impl CPU {
         match mode {
             M::ZeroPage | M::ZeroPageX | M::ZeroPageY | M::IndexedIndirect | M::IndirectIndexed => {
                 let addr = self.get_next_u8();
-                self.memory[self.get_addr_8bit(addr, mode) as usize] = val;
+                self.memory.write(self.get_addr_8bit(addr, mode), val);
             }
             M::Absolute | M::AbsoluteX | M::AbsoluteY | M::Indirect => {
                 let addr = self.get_next_u16();
-                self.memory[self.get_addr_16bit(addr, mode) as usize] = val;
+                self.memory.write(self.get_addr_16bit(addr, mode), val);
             }
             _ => panic!("cannot store value for {:?}", mode),
         }
@@ -701,8 +705,7 @@ impl CPU {
     }
 
     fn peek_stack(&self) -> u8 {
-        self.memory[self.stack_pointer as usize + 0x100]
-        // TODO make this a constant
+        self.memory.read(self.stack_pointer as u16 + STACK_START)
     }
 
     fn pull_stack(&mut self) -> u8 {
@@ -711,7 +714,8 @@ impl CPU {
     }
 
     fn push_stack(&mut self, val: u8) {
-        self.memory[self.stack_pointer as usize + 0x100] = val;
+        self.memory
+            .write(self.stack_pointer as u16 + STACK_START, val);
         self.dec_sp();
     }
 }

@@ -1,6 +1,9 @@
 // JMP, JSR, RTS, BRK, RTI
 
-use crate::cpu::{cpu::tests::set_multiple_bytes, instructions, Flag, CPU};
+use crate::cpu::{
+    cpu::{tests::set_multiple_bytes, STACK_START},
+    instructions, CPU,
+};
 use instructions as IN;
 
 #[test]
@@ -37,11 +40,11 @@ fn test_jsr_and_rts() {
     assert_eq!(cpu.program_counter, 0x2025);
     assert_eq!(cpu.stack_pointer, 253);
     assert_eq!(
-        cpu.memory[(0x100 + cpu.stack_pointer as u16 + 1) as usize],
+        cpu.memory.read(STACK_START + cpu.stack_pointer as u16 + 1),
         0x35
     );
     assert_eq!(
-        cpu.memory[(0x100 + cpu.stack_pointer as u16 + 2) as usize],
+        cpu.memory.read(STACK_START + cpu.stack_pointer as u16 + 2),
         0x12
     );
 
