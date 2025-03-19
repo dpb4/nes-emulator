@@ -72,11 +72,11 @@ fn test_ldy() {
 fn test_sta() {
     let mut cpu = CPU::new();
 
-    set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0xcd, 0, 0x33]);
+    set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0x1d, 0, 0x33]);
 
     cpu.accumulator = 0xbc;
     cpu.execute(IN::STA_A);
-    assert_eq!(cpu.memory.read(0xcdab), 0xbc);
+    assert_eq!(cpu.memory.read(0x1dab), 0xbc);
 
     cpu.accumulator = 0xde;
     cpu.execute(IN::STA_Z);
@@ -87,11 +87,11 @@ fn test_sta() {
 fn test_stx() {
     let mut cpu = CPU::new();
 
-    set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0xcd, 0, 0x33]);
+    set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0x1d, 0, 0x33]);
 
     cpu.reg_x = 0xbc;
     cpu.execute(IN::STX_A);
-    assert_eq!(cpu.memory.read(0xcdab), 0xbc);
+    assert_eq!(cpu.memory.read(0x1dab), 0xbc);
 
     cpu.reg_x = 0xde;
     cpu.execute(IN::STX_Z);
@@ -102,11 +102,11 @@ fn test_stx() {
 fn test_sty() {
     let mut cpu = CPU::new();
 
-    set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0xcd, 0, 0x33]);
+    set_multiple_bytes(&mut cpu, 0, &vec![0, 0xab, 0x1d, 0, 0x33]);
 
     cpu.reg_y = 0xbc;
     cpu.execute(IN::STY_A);
-    assert_eq!(cpu.memory.read(0xcdab), 0xbc);
+    assert_eq!(cpu.memory.read(0x1dab), 0xbc);
 
     cpu.reg_y = 0xde;
     cpu.execute(IN::STY_Z);

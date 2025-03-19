@@ -13,7 +13,7 @@ fn test_and() {
     set_multiple_bytes(
         &mut cpu,
         0,
-        &vec![255, 0b11110000, 0b00001111, 0b11001011, 0b11001100],
+        &vec![255, 0b11110000, 0b00001111, 0b00001110, 0b00001010],
     );
 
     cpu.accumulator = 0b11010011 as u8;
@@ -30,9 +30,9 @@ fn test_and() {
     cpu.execute(IN::AND_Z);
 
     assert_eq!(cpu.program_counter, 4);
-    assert_eq!(cpu.accumulator, get_example_byte(0b11001011));
+    assert_eq!(cpu.accumulator, get_example_byte(0b00001110));
     assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(Flag::Negative), 0);
     assert_eq!(cpu.cycle_count, 5);
 }
 
@@ -41,8 +41,8 @@ fn test_bit() {
     let mut cpu = CPU::new();
 
     cpu.accumulator = 255;
-    set_multiple_bytes(&mut cpu, 1, &vec![0x01, 0xf0, 0, 0x02, 0xf0, 0, 0x03, 0xf0]);
-    set_multiple_bytes(&mut cpu, 0xf001, &vec![0b01000000, 0b10000000, 0]);
+    set_multiple_bytes(&mut cpu, 1, &vec![0x01, 0x01, 0, 0x02, 0x01, 0, 0x03, 0x01]);
+    set_multiple_bytes(&mut cpu, 0x0101, &vec![0b01000000, 0b10000000, 0]);
 
     cpu.execute(IN::BIT_A);
 

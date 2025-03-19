@@ -16,7 +16,7 @@ pub fn set_multiple_bytes(cpu: &mut CPU, start_address: u16, bytes: &Vec<u8>) {
 }
 
 pub fn set_byte_example(cpu: &mut CPU) {
-    for i in 0..0xffff_u16 {
+    for i in 0..0x1fff_u16 {
         let val = i.wrapping_add(1857).wrapping_mul(937) as u8;
         set_single_byte(cpu, i, val);
     }

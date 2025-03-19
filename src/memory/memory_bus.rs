@@ -29,9 +29,11 @@ impl MemoryBus {
             }
             PPU_REG_START..=PPU_REG_END_MIRRORED => {
                 let _truncated_addr = addr & PPU_REG_ADDR_MASK;
+                println!("{addr}");
                 todo!("ppu read not implemented")
             }
             PRG_ROM_START..=PRG_ROM_END_MIRRORED => {
+                println!("{addr}");
                 todo!("rom not implemented")
             }
             _ => {
@@ -48,6 +50,7 @@ impl MemoryBus {
             }
             PPU_REG_START..=PPU_REG_END_MIRRORED => {
                 let _truncated_addr = addr & PPU_REG_ADDR_MASK;
+                println!("{addr}");
                 todo!("ppu write not implemented")
             }
             PRG_ROM_START..=PRG_ROM_END_MIRRORED => {

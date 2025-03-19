@@ -10,21 +10,21 @@ use instructions as IN;
 fn test_jmp() {
     let mut cpu = CPU::new();
 
-    set_multiple_bytes(&mut cpu, 0, &vec![0, 0x11, 0x22]);
-    set_multiple_bytes(&mut cpu, 0x2211, &vec![0x20, 0x25]);
-    set_multiple_bytes(&mut cpu, 0x2521, &vec![0xff, 0x33]);
-    set_multiple_bytes(&mut cpu, 0x3300, &vec![0x12, 0x34]);
-    set_multiple_bytes(&mut cpu, 0x33ff, &vec![0x56, 0x78]);
-    set_multiple_bytes(&mut cpu, 0x1257, &vec![0x56, 0x78]);
+    set_multiple_bytes(&mut cpu, 0, &vec![0, 0x11, 0x02]);
+    set_multiple_bytes(&mut cpu, 0x0211, &vec![0x20, 0x05]);
+    set_multiple_bytes(&mut cpu, 0x0521, &vec![0xff, 0x03]);
+    set_multiple_bytes(&mut cpu, 0x0300, &vec![0x02, 0x14]);
+    set_multiple_bytes(&mut cpu, 0x03ff, &vec![0x56, 0x48]);
+    set_multiple_bytes(&mut cpu, 0x0257, &vec![0x56, 0x08]);
 
     cpu.execute(IN::JMP_I);
-    assert_eq!(cpu.program_counter, 0x2520);
+    assert_eq!(cpu.program_counter, 0x0520);
 
     cpu.execute(IN::JMP_I);
-    assert_eq!(cpu.program_counter, 0x1256);
+    assert_eq!(cpu.program_counter, 0x0256);
 
     cpu.execute(IN::JMP_A);
-    assert_eq!(cpu.program_counter, 0x7856);
+    assert_eq!(cpu.program_counter, 0x0856);
 }
 
 #[test]
