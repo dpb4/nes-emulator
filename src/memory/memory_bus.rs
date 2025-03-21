@@ -1,23 +1,27 @@
-const RAM_START: u16 = 0x0000;
-const RAM_END_MIRRORED: u16 = 0x1fff;
-const RAM_ADDR_MASK: u16 = 0b0000_0111_1111_1111;
+use super::cartridge_rom::CartridgeROM;
 
-const PPU_REG_START: u16 = 0x2000;
-const PPU_REG_END_MIRRORED: u16 = 0x3fff;
-const PPU_REG_ADDR_MASK: u16 = 0b0010_0000_0000_0111;
+pub const RAM_START: u16 = 0x0000;
+pub const RAM_END_MIRRORED: u16 = 0x1fff;
+pub const RAM_ADDR_MASK: u16 = 0b0000_0111_1111_1111;
 
-const PRG_ROM_START: u16 = 0x8000;
-const PRG_ROM_END_MIRRORED: u16 = 0xffff;
+pub const PPU_REG_START: u16 = 0x2000;
+pub const PPU_REG_END_MIRRORED: u16 = 0x3fff;
+pub const PPU_REG_ADDR_MASK: u16 = 0b0010_0000_0000_0111;
+
+pub const PRG_ROM_START: u16 = 0x8000;
+pub const PRG_ROM_END_MIRRORED: u16 = 0xffff;
 
 #[derive(Debug)]
 pub struct MemoryBus {
     cpu_vram: [u8; 2048],
+    rom: CartridgeROM,
 }
 
 impl MemoryBus {
-    pub fn new() -> Self {
+    pub fn new(rom: CartridgeROM) -> Self {
         MemoryBus {
             cpu_vram: [0; 2048],
+            rom,
         }
     }
 
@@ -33,8 +37,11 @@ impl MemoryBus {
                 todo!("ppu read not implemented")
             }
             PRG_ROM_START..=PRG_ROM_END_MIRRORED => {
-                println!("{addr}");
-                todo!("rom not implemented")
+                let mut prg_addr = addr - PRG_ROM_START;
+                if self.rom.prg_rom.len() == 0x4000 && prg_addr >= 0x4000 {
+                    prg_addr %= 0x4000;
+                }
+                self.rom.prg_rom[prg_addr as usize]
             }
             _ => {
                 panic!("bad memory read at 0x{:x}", addr);

@@ -17,7 +17,7 @@ pub enum AddressingMode {
     IndirectIndexed, // IY
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, strum_macros::Display)]
 pub enum InstructionName {
     ADC,
     AND,

@@ -1,8 +1,11 @@
 #![allow(non_snake_case)]
 
-use crate::memory::memory_bus::MemoryBus;
+use crate::memory::{
+    cartridge_rom::CartridgeROM,
+    memory_bus::{MemoryBus, PRG_ROM_START},
+};
 
-use super::instructions::{AddressingMode, Instruction};
+use super::instructions::{get_instruction, AddressingMode, Instruction, JMP_A, JMP_I, JSR_A};
 
 #[cfg(test)]
 mod tests;
@@ -25,6 +28,9 @@ pub struct CPU {
     pub program_counter: u16,
     pub cycle_count: u32,
     memory: MemoryBus,
+
+    logged: bool,
+    pub log: String,
     // memory: [u8; 0xffff],
 }
 
@@ -60,7 +66,27 @@ impl CPU {
             flags: 0,
             program_counter: 0,
             cycle_count: 0,
-            memory: MemoryBus::new(),
+            memory: MemoryBus::new(CartridgeROM::dummy()),
+            logged: false,
+            log: String::new(),
+        }
+    }
+
+    pub fn new_program(raw_bytes: Vec<u8>, logged: bool) -> Self {
+        Self {
+            reg_x: 0,
+            reg_y: 0,
+            accumulator: 0,
+            stack_pointer: 0xfd,
+            flags: 0x24,
+            program_counter: 0xc000,
+            cycle_count: 0,
+            memory: MemoryBus::new(match CartridgeROM::new(raw_bytes) {
+                Ok(c) => c,
+                Err(msg) => panic!("{msg}"),
+            }),
+            logged,
+            log: String::new(),
         }
     }
 
@@ -76,6 +102,18 @@ impl CPU {
 
     pub fn get_flag(&self, flag: Flag) -> u8 {
         (self.flags & (1 << flag.bit())) >> flag.bit()
+    }
+
+    pub fn tick(&mut self) {
+        let opcode = self.memory.read(self.program_counter);
+        let ins = *get_instruction(opcode);
+        if self.logged {
+            let log = self.logged_execute(ins);
+            println!("{log}");
+            self.log.push_str(&log);
+            self.log.push('\n');
+        }
+        self.execute(ins); // TODO change reference
     }
 
     pub fn execute(&mut self, ins: Instruction) {
@@ -590,12 +628,14 @@ impl CPU {
             ZeroPageX => self.reg_x.wrapping_add(address) as u16,
             ZeroPageY => self.reg_y.wrapping_add(address) as u16,
             IndexedIndirect => {
+                //TODO check this
                 make16!(
                     self.memory.read(self.get_addr_8bit(address + 1, ZeroPageX)),
                     self.memory.read(self.get_addr_8bit(address, ZeroPageX))
                 )
             }
             IndirectIndexed => {
+                // TODO add a method for this
                 make16!(
                     self.memory.read(self.get_addr_8bit(address + 1, ZeroPage)),
                     self.memory.read(self.get_addr_8bit(address, ZeroPage))
@@ -718,4 +758,276 @@ impl CPU {
             .write(self.stack_pointer as u16 + STACK_START, val);
         self.dec_sp();
     }
+
+    pub fn logged_execute(&mut self, ins: Instruction) -> String {
+        // CODE FROM https://github.com/bugzmanov/nes_ebook/blob/master/code/ch5.1/src/trace.rs
+
+        let begin = self.program_counter;
+        let mut hex_dump = vec![];
+        hex_dump.push(ins.opcode);
+
+        let (mem_addr, stored_value) = match ins.mode {
+            AddressingMode::Immediate | AddressingMode::Implicit => (0, 0),
+            _ => match ins.bytes {
+                2 => {
+                    let addr = self.memory.read(begin + 1);
+                    if ins.mode != AddressingMode::Relative {
+                        (addr as u16, self.read_8bit(addr, ins.mode))
+                    } else {
+                        (addr as u16, 0)
+                    }
+                }
+                3 => {
+                    let addr = make16!(self.memory.read(begin + 2), self.memory.read(begin + 1));
+                    (addr, self.read_16bit(addr, ins.mode))
+                }
+                _ => {
+                    unreachable!()
+                }
+            },
+        };
+
+        let tmp = match ins.bytes {
+            1 => match ins.opcode {
+                0x0a | 0x4a | 0x2a | 0x6a => format!("A "),
+                _ => String::from(""),
+            },
+            2 => {
+                let address: u8 = self.memory.read(begin + 1);
+
+                hex_dump.push(address);
+
+                match ins.mode {
+                    AddressingMode::Immediate => format!("#${:02x}", address),
+                    AddressingMode::ZeroPage => format!("${:02x} = {:02x}", mem_addr, stored_value),
+                    AddressingMode::ZeroPageX => format!(
+                        "${:02x},X @ {:02x} = {:02x}",
+                        address, mem_addr, stored_value
+                    ),
+                    AddressingMode::ZeroPageY => format!(
+                        "${:02x},Y @ {:02x} = {:02x}",
+                        address, mem_addr, stored_value
+                    ),
+                    AddressingMode::IndexedIndirect => format!(
+                        "(${:02x},X) @ {:02x} = {:04x} = {:02x}",
+                        address,
+                        (address.wrapping_add(self.reg_x)),
+                        mem_addr,
+                        stored_value
+                    ),
+                    AddressingMode::IndirectIndexed => format!(
+                        "(${:02x}),Y = {:04x} @ {:04x} = {:02x}",
+                        address,
+                        (mem_addr.wrapping_sub(self.reg_y as u16)),
+                        mem_addr,
+                        stored_value
+                    ),
+                    AddressingMode::Implicit | AddressingMode::Relative => {
+                        // assuming local jumps: BNE, BVS, etc....
+                        let address: usize =
+                            (begin as usize + 2).wrapping_add((address as i8) as usize);
+                        format!("${:04x}", address)
+                    }
+
+                    _ => panic!(
+                        "unexpected addressing mode {:?} has ops-len 2. code {:02x}",
+                        ins.mode, ins.opcode
+                    ),
+                }
+            }
+            3 => {
+                let address_lo = self.memory.read(begin + 1);
+                let address_hi = self.memory.read(begin + 2);
+                hex_dump.push(address_lo);
+                hex_dump.push(address_hi);
+
+                let address = make16!(address_hi, address_lo);
+
+                if ins == JMP_A || ins == JMP_I || ins == JSR_A {
+                    format!("${:04x}", address)
+                } else {
+                    match ins.mode {
+                        AddressingMode::Implicit => {
+                            if ins.opcode == 0x6c {
+                                //jmp indirect
+                                let jmp_addr = if address & 0x00FF == 0x00FF {
+                                    let lo = self.memory.read(address);
+                                    let hi = self.memory.read(address & 0xFF00);
+                                    (hi as u16) << 8 | (lo as u16)
+                                } else {
+                                    make16!(
+                                        self.memory.read(address + 1),
+                                        self.memory.read(address)
+                                    )
+                                };
+
+                                // let jmp_addr = cpu.mem_read_u16(address);
+                                format!("(${:04x}) = {:04x}", address, jmp_addr)
+                            } else {
+                                format!("${:04x}", address)
+                            }
+                        }
+                        AddressingMode::Absolute => {
+                            format!("${:04x} = {:02x}", mem_addr, stored_value)
+                        }
+                        AddressingMode::AbsoluteX => format!(
+                            "${:04x},X @ {:04x} = {:02x}",
+                            address, mem_addr, stored_value
+                        ),
+                        AddressingMode::AbsoluteY => format!(
+                            "${:04x},Y @ {:04x} = {:02x}",
+                            address, mem_addr, stored_value
+                        ),
+                        _ => panic!(
+                            "unexpected addressing mode {:?} has ops-len 3. code {:02x}",
+                            ins.mode, ins.opcode
+                        ),
+                    }
+                }
+            }
+            _ => String::from(""),
+        };
+
+        let hex_str = hex_dump
+            .iter()
+            .map(|z| format!("{:02x}", z))
+            .collect::<Vec<String>>()
+            .join(" ");
+        let asm_str = format!("{:04x}  {:8} {: >4} {}", begin, hex_str, ins.name, tmp)
+            .trim()
+            .to_string();
+
+        format!(
+            "{:47} A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x}",
+            asm_str, self.accumulator, self.reg_x, self.reg_y, self.flags, self.stack_pointer,
+        )
+        .to_ascii_uppercase()
+    }
+
+    /*
+        pub fn trace(cpu: &CPU) -> String {
+        let ref opscodes: HashMap<u8, &'static opcodes::OpCode> = *opcodes::OPCODES_MAP;
+
+        let code = cpu.mem_read(cpu.program_counter);
+        let ops = opscodes.get(&code).unwrap();
+
+        let begin = cpu.program_counter;
+        let mut hex_dump = vec![];
+        hex_dump.push(code);
+
+        let (mem_addr, stored_value) = match ops.mode {
+            AddressingMode::Immediate | AddressingMode::NoneAddressing => (0, 0),
+            _ => {
+                let addr = cpu.get_absolute_address(&ops.mode, begin + 1);
+                (addr, cpu.mem_read(addr))
+            }
+        };
+
+        let tmp = match ops.len {
+            1 => match ops.code {
+                0x0a | 0x4a | 0x2a | 0x6a => format!("A "),
+                _ => String::from(""),
+            },
+            2 => {
+                let address: u8 = cpu.mem_read(begin + 1);
+                // let value = cpu.mem_read(address));
+                hex_dump.push(address);
+
+                match ops.mode {
+                    AddressingMode::Immediate => format!("#${:02x}", address),
+                    AddressingMode::ZeroPage => format!("${:02x} = {:02x}", mem_addr, stored_value),
+                    AddressingMode::ZeroPage_X => format!(
+                        "${:02x},X @ {:02x} = {:02x}",
+                        address, mem_addr, stored_value
+                    ),
+                    AddressingMode::ZeroPage_Y => format!(
+                        "${:02x},Y @ {:02x} = {:02x}",
+                        address, mem_addr, stored_value
+                    ),
+                    AddressingMode::Indirect_X => format!(
+                        "(${:02x},X) @ {:02x} = {:04x} = {:02x}",
+                        address,
+                        (address.wrapping_add(cpu.register_x)),
+                        mem_addr,
+                        stored_value
+                    ),
+                    AddressingMode::Indirect_Y => format!(
+                        "(${:02x}),Y = {:04x} @ {:04x} = {:02x}",
+                        address,
+                        (mem_addr.wrapping_sub(cpu.register_y as u16)),
+                        mem_addr,
+                        stored_value
+                    ),
+                    AddressingMode::NoneAddressing => {
+                        // assuming local jumps: BNE, BVS, etc....
+                        let address: usize =
+                            (begin as usize + 2).wrapping_add((address as i8) as usize);
+                        format!("${:04x}", address)
+                    }
+
+                    _ => panic!(
+                        "unexpected addressing mode {:?} has ops-len 2. code {:02x}",
+                        ops.mode, ops.code
+                    ),
+                }
+            }
+            3 => {
+                let address_lo = cpu.mem_read(begin + 1);
+                let address_hi = cpu.mem_read(begin + 2);
+                hex_dump.push(address_lo);
+                hex_dump.push(address_hi);
+
+                let address = cpu.mem_read_u16(begin + 1);
+
+                match ops.mode {
+                    AddressingMode::NoneAddressing => {
+                        if ops.code == 0x6c {
+                            //jmp indirect
+                            let jmp_addr = if address & 0x00FF == 0x00FF {
+                                let lo = cpu.mem_read(address);
+                                let hi = cpu.mem_read(address & 0xFF00);
+                                (hi as u16) << 8 | (lo as u16)
+                            } else {
+                                cpu.mem_read_u16(address)
+                            };
+
+                            // let jmp_addr = cpu.mem_read_u16(address);
+                            format!("(${:04x}) = {:04x}", address, jmp_addr)
+                        } else {
+                            format!("${:04x}", address)
+                        }
+                    }
+                    AddressingMode::Absolute => format!("${:04x} = {:02x}", mem_addr, stored_value),
+                    AddressingMode::Absolute_X => format!(
+                        "${:04x},X @ {:04x} = {:02x}",
+                        address, mem_addr, stored_value
+                    ),
+                    AddressingMode::Absolute_Y => format!(
+                        "${:04x},Y @ {:04x} = {:02x}",
+                        address, mem_addr, stored_value
+                    ),
+                    _ => panic!(
+                        "unexpected addressing mode {:?} has ops-len 3. code {:02x}",
+                        ops.mode, ops.code
+                    ),
+                }
+            }
+            _ => String::from(""),
+        };
+
+        let hex_str = hex_dump
+            .iter()
+            .map(|z| format!("{:02x}", z))
+            .collect::<Vec<String>>()
+            .join(" ");
+        let asm_str = format!("{:04x}  {:8} {: >4} {}", begin, hex_str, ops.mnemonic, tmp)
+            .trim()
+            .to_string();
+
+        format!(
+            "{:47} A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x}",
+            asm_str, cpu.register_a, cpu.register_x, cpu.register_y, cpu.status, cpu.stack_pointer,
+        )
+        .to_ascii_uppercase()
+    } */
 }
