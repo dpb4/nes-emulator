@@ -114,8 +114,8 @@ pub const ADC_ZX: Instruction = Instruction::new(IN::ADC, 0x75, ZeroPageX, 2, 4)
 pub const ADC_A: Instruction = Instruction::new(IN::ADC, 0x6d, Absolute, 3, 4);
 pub const ADC_AX: Instruction = Instruction::new(IN::ADC, 0x7d, AbsoluteX, 3, 4); // ex
 pub const ADC_AY: Instruction = Instruction::new(IN::ADC, 0x79, AbsoluteY, 3, 4); // ex
-pub const ADC_IX: Instruction = Instruction::new(IN::ADC, 0x61, IndirectIndexed, 2, 6);
-pub const ADC_IY: Instruction = Instruction::new(IN::ADC, 0x71, IndexedIndirect, 2, 5); // ex
+pub const ADC_IX: Instruction = Instruction::new(IN::ADC, 0x61, IndexedIndirect, 2, 6);
+pub const ADC_IY: Instruction = Instruction::new(IN::ADC, 0x71, IndirectIndexed, 2, 5); // ex
 
 // AND: arithmetic and
 pub const AND_IM: Instruction = Instruction::new(IN::AND, 0x29, Immediate, 2, 2);
@@ -124,8 +124,8 @@ pub const AND_ZX: Instruction = Instruction::new(IN::AND, 0x35, ZeroPageX, 2, 4)
 pub const AND_A: Instruction = Instruction::new(IN::AND, 0x2d, Absolute, 3, 4);
 pub const AND_AX: Instruction = Instruction::new(IN::AND, 0x3d, AbsoluteX, 3, 4); // ex
 pub const AND_AY: Instruction = Instruction::new(IN::AND, 0x39, AbsoluteY, 3, 4); // ex
-pub const AND_IX: Instruction = Instruction::new(IN::AND, 0x21, IndirectIndexed, 2, 6);
-pub const AND_IY: Instruction = Instruction::new(IN::AND, 0x31, IndexedIndirect, 2, 5); // ex
+pub const AND_IX: Instruction = Instruction::new(IN::AND, 0x21, IndexedIndirect, 2, 6);
+pub const AND_IY: Instruction = Instruction::new(IN::AND, 0x31, IndirectIndexed, 2, 5); // ex
 
 // ASL: arithmetic shift left
 pub const ASL_AC: Instruction = Instruction::new(IN::ASL, 0x0a, Accumulator, 1, 2);
@@ -179,13 +179,13 @@ pub const CLV: Instruction = Instruction::new(IN::CLV, 0xb8, Implicit, 1, 2);
 
 // CMP: compare
 pub const CMP_IM: Instruction = Instruction::new(IN::CMP, 0xc9, Immediate, 2, 2);
-pub const CMP_Z: Instruction = Instruction::new(IN::CMP, 0xc5, Immediate, 2, 3);
+pub const CMP_Z: Instruction = Instruction::new(IN::CMP, 0xc5, ZeroPage, 2, 3);
 pub const CMP_ZX: Instruction = Instruction::new(IN::CMP, 0xd5, ZeroPageX, 2, 4);
 pub const CMP_A: Instruction = Instruction::new(IN::CMP, 0xcd, Absolute, 3, 4);
 pub const CMP_AX: Instruction = Instruction::new(IN::CMP, 0xdd, AbsoluteX, 3, 4); // ex
 pub const CMP_AY: Instruction = Instruction::new(IN::CMP, 0xd9, AbsoluteY, 3, 4); // ex
-pub const CMP_IX: Instruction = Instruction::new(IN::CMP, 0xc1, IndirectIndexed, 2, 6);
-pub const CMP_IY: Instruction = Instruction::new(IN::CMP, 0xd1, IndexedIndirect, 2, 5); // ex
+pub const CMP_IX: Instruction = Instruction::new(IN::CMP, 0xc1, IndexedIndirect, 2, 6);
+pub const CMP_IY: Instruction = Instruction::new(IN::CMP, 0xd1, IndirectIndexed, 2, 5); // ex
 
 // CPX: compare x register
 pub const CPX_IM: Instruction = Instruction::new(IN::CPX, 0xe0, Immediate, 2, 2);
@@ -216,8 +216,8 @@ pub const EOR_ZX: Instruction = Instruction::new(IN::EOR, 0x55, ZeroPageX, 2, 4)
 pub const EOR_A: Instruction = Instruction::new(IN::EOR, 0x4d, Absolute, 3, 4);
 pub const EOR_AX: Instruction = Instruction::new(IN::EOR, 0x5d, AbsoluteX, 3, 4); // ex
 pub const EOR_AY: Instruction = Instruction::new(IN::EOR, 0x59, AbsoluteY, 3, 4); // ex
-pub const EOR_IX: Instruction = Instruction::new(IN::EOR, 0x41, IndirectIndexed, 2, 6);
-pub const EOR_IY: Instruction = Instruction::new(IN::EOR, 0x51, IndexedIndirect, 2, 5); // ex
+pub const EOR_IX: Instruction = Instruction::new(IN::EOR, 0x41, IndexedIndirect, 2, 6);
+pub const EOR_IY: Instruction = Instruction::new(IN::EOR, 0x51, IndirectIndexed, 2, 5); // ex
 
 // INC: increment memory
 pub const INC_Z: Instruction = Instruction::new(IN::INC, 0xe6, ZeroPage, 2, 5);
@@ -245,8 +245,8 @@ pub const LDA_ZX: Instruction = Instruction::new(IN::LDA, 0xb5, ZeroPageX, 2, 4)
 pub const LDA_A: Instruction = Instruction::new(IN::LDA, 0xad, Absolute, 3, 4);
 pub const LDA_AX: Instruction = Instruction::new(IN::LDA, 0xbd, AbsoluteX, 3, 4); // ex
 pub const LDA_AY: Instruction = Instruction::new(IN::LDA, 0xb9, AbsoluteY, 3, 4); // ex
-pub const LDA_IX: Instruction = Instruction::new(IN::LDA, 0xa1, IndirectIndexed, 2, 6);
-pub const LDA_IY: Instruction = Instruction::new(IN::LDA, 0xb1, IndexedIndirect, 2, 5); // ex
+pub const LDA_IX: Instruction = Instruction::new(IN::LDA, 0xa1, IndexedIndirect, 2, 6);
+pub const LDA_IY: Instruction = Instruction::new(IN::LDA, 0xb1, IndirectIndexed, 2, 5); // ex
 
 // LDX: load x register
 pub const LDX_IM: Instruction = Instruction::new(IN::LDX, 0xa2, Immediate, 2, 2);
@@ -279,8 +279,8 @@ pub const ORA_ZX: Instruction = Instruction::new(IN::ORA, 0x15, ZeroPageX, 2, 4)
 pub const ORA_A: Instruction = Instruction::new(IN::ORA, 0x0d, Absolute, 3, 4);
 pub const ORA_AX: Instruction = Instruction::new(IN::ORA, 0x1d, AbsoluteX, 3, 4); // ex
 pub const ORA_AY: Instruction = Instruction::new(IN::ORA, 0x19, AbsoluteY, 3, 4); // ex
-pub const ORA_IX: Instruction = Instruction::new(IN::ORA, 0x01, IndirectIndexed, 2, 6);
-pub const ORA_IY: Instruction = Instruction::new(IN::ORA, 0x11, IndexedIndirect, 2, 5); // ex
+pub const ORA_IX: Instruction = Instruction::new(IN::ORA, 0x01, IndexedIndirect, 2, 6);
+pub const ORA_IY: Instruction = Instruction::new(IN::ORA, 0x11, IndirectIndexed, 2, 5); // ex
 
 // PHA: push accumulator
 pub const PHA: Instruction = Instruction::new(IN::PHA, 0x48, Implicit, 1, 3);
@@ -321,8 +321,8 @@ pub const SBC_ZX: Instruction = Instruction::new(IN::SBC, 0xf5, ZeroPageX, 2, 4)
 pub const SBC_A: Instruction = Instruction::new(IN::SBC, 0xed, Absolute, 3, 4);
 pub const SBC_AX: Instruction = Instruction::new(IN::SBC, 0xfd, AbsoluteX, 3, 4); // ex
 pub const SBC_AY: Instruction = Instruction::new(IN::SBC, 0xf9, AbsoluteY, 3, 4); // ex
-pub const SBC_IX: Instruction = Instruction::new(IN::SBC, 0xe1, IndirectIndexed, 2, 6);
-pub const SBC_IY: Instruction = Instruction::new(IN::SBC, 0xf1, IndexedIndirect, 2, 5); // ex
+pub const SBC_IX: Instruction = Instruction::new(IN::SBC, 0xe1, IndexedIndirect, 2, 6);
+pub const SBC_IY: Instruction = Instruction::new(IN::SBC, 0xf1, IndirectIndexed, 2, 5); // ex
 
 // SEC: set carry flag
 pub const SEC: Instruction = Instruction::new(IN::SEC, 0x38, Implicit, 1, 2);
@@ -339,8 +339,8 @@ pub const STA_ZX: Instruction = Instruction::new(IN::STA, 0x95, ZeroPageX, 2, 4)
 pub const STA_A: Instruction = Instruction::new(IN::STA, 0x8d, Absolute, 3, 4);
 pub const STA_AX: Instruction = Instruction::new(IN::STA, 0x9d, AbsoluteX, 3, 5);
 pub const STA_AY: Instruction = Instruction::new(IN::STA, 0x99, AbsoluteY, 3, 5);
-pub const STA_IX: Instruction = Instruction::new(IN::STA, 0x81, IndirectIndexed, 2, 6);
-pub const STA_IY: Instruction = Instruction::new(IN::STA, 0x91, IndexedIndirect, 2, 6);
+pub const STA_IX: Instruction = Instruction::new(IN::STA, 0x81, IndexedIndirect, 2, 6);
+pub const STA_IY: Instruction = Instruction::new(IN::STA, 0x91, IndirectIndexed, 2, 6);
 
 // STX: store x register
 pub const STX_Z: Instruction = Instruction::new(IN::STX, 0x86, ZeroPage, 2, 3);
