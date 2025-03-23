@@ -150,7 +150,7 @@ pub const BMI: Instruction = Instruction::new(IN::BMI, 0x30, Relative, 2, 2); //
 pub const BNE: Instruction = Instruction::new(IN::BNE, 0xd0, Relative, 2, 2); // ex
 
 // BPL: branch if positive
-pub const BPL: Instruction = Instruction::new(IN::BPL, 0xd0, Relative, 2, 2); // ex
+pub const BPL: Instruction = Instruction::new(IN::BPL, 0x10, Relative, 2, 2); // ex
 
 // BVC: branch if overflow clear
 pub const BVC: Instruction = Instruction::new(IN::BVC, 0x50, Relative, 2, 2); // ex

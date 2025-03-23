@@ -10,7 +10,7 @@ pub fn start(raw_bytes: Vec<u8>) {
         cpu::CPU::new_program(raw_bytes, true)
     };
 
-    for _ in 0..100 {
+    for _ in 0..500 {
         c.tick();
     }
 

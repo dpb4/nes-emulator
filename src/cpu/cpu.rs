@@ -535,10 +535,11 @@ impl CPU {
 
             IN::PLA => {
                 self.accumulator = self.pull_stack();
+                self.set_zn_flags(self.accumulator);
             }
 
             IN::PLP => {
-                self.flags = self.pull_stack();
+                self.flags = self.pull_stack() & 0b11101111 | 0b00100000;
                 // TODO the I flag needs to be delayed 1 instr
             }
 
