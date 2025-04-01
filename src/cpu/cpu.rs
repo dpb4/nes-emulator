@@ -1,17 +1,14 @@
 #![allow(non_snake_case)]
 
-use crate::memory::{cartridge_rom::CartridgeROM, memory_bus::MemoryBus};
+use crate::{
+    make16,
+    memory::{cartridge_rom::CartridgeROM, memory_bus::MemoryBus},
+};
 
 use super::instructions::{get_instruction, AddressingMode, Instruction, JMP_A, JMP_I, JSR_A};
 
 #[cfg(test)]
 mod tests;
-
-macro_rules! make16 {
-    ($hi:expr, $lo:expr) => {
-        (($hi as u16) << 8) | ($lo as u16)
-    };
-}
 
 const STACK_START: u16 = 0x100;
 
@@ -103,14 +100,14 @@ impl CPU {
 
     pub fn tick(&mut self) {
         let opcode = self.memory.read(self.program_counter);
-        let ins = *get_instruction(opcode);
+        let ins = get_instruction(opcode);
         if self.logged {
             let log = self.logged_execute(ins);
             println!("{log}");
             self.log.push_str(&log);
             self.log.push('\n');
         }
-        self.execute(ins); // TODO change reference
+        self.execute(ins);
     }
 
     pub fn execute(&mut self, ins: Instruction) {
@@ -622,29 +619,29 @@ impl CPU {
     // }
 
     pub fn get_addr_8bit(&self, address: u8, mode: AddressingMode) -> u16 {
-        use AddressingMode::*; // TODO
+        use AddressingMode as M;
         match mode {
-            ZeroPage => address as u16,
-            ZeroPageX => self.reg_x.wrapping_add(address) as u16,
-            ZeroPageY => self.reg_y.wrapping_add(address) as u16,
-            IndexedIndirect => {
+            M::ZeroPage => address as u16,
+            M::ZeroPageX => self.reg_x.wrapping_add(address) as u16,
+            M::ZeroPageY => self.reg_y.wrapping_add(address) as u16,
+            M::IndexedIndirect => {
                 //TODO check this
                 make16!(
                     self.memory
-                        .read(self.get_addr_8bit(address.wrapping_add(1), ZeroPageX)),
-                    self.memory.read(self.get_addr_8bit(address, ZeroPageX))
+                        .read(self.get_addr_8bit(address.wrapping_add(1), M::ZeroPageX)),
+                    self.memory.read(self.get_addr_8bit(address, M::ZeroPageX))
                 )
             }
-            IndirectIndexed => {
+            M::IndirectIndexed => {
                 // TODO add a method for this
                 make16!(
                     self.memory
-                        .read(self.get_addr_8bit(address.wrapping_add(1), ZeroPage)),
-                    self.memory.read(self.get_addr_8bit(address, ZeroPage))
+                        .read(self.get_addr_8bit(address.wrapping_add(1), M::ZeroPage)),
+                    self.memory.read(self.get_addr_8bit(address, M::ZeroPage))
                 )
                 .wrapping_add(self.reg_y as u16)
             }
-            Relative | Immediate | Accumulator | Implicit => {
+            M::Relative | M::Immediate | M::Accumulator | M::Implicit => {
                 panic!("{:?} does not need memory address", mode)
             }
             _ => {
