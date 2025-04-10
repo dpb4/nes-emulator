@@ -7,10 +7,26 @@ use crate::{
 
 use super::instructions::{get_instruction, AddressingMode, Instruction, JMP_A, JMP_I, JSR_A};
 
+use bitflags::bitflags;
+
 #[cfg(test)]
 mod tests;
 
 const STACK_START: u16 = 0x100;
+
+bitflags! {
+    #[derive(Debug)]
+    pub struct StatusFlags: u8 {
+        const CARRY = 0b00000001;
+        const ZERO  = 0b00000010;
+        const INTERRUPT = 0b00000100;
+        const DECIMAL = 0b00001000;
+        const B = 0b00010000;
+        const U = 0b00100000;
+        const OVERFLOW = 0b01000000;
+        const NEGATIVE = 0b10000000;
+    }
+}
 
 #[derive(Debug)]
 pub struct CPU {
@@ -18,7 +34,7 @@ pub struct CPU {
     pub reg_y: u8,
     pub accumulator: u8,
     pub stack_pointer: u8,
-    pub flags: u8,
+    pub flags: StatusFlags,
     pub program_counter: u16,
     pub cycle_count: u32,
     memory: MemoryBus,
@@ -28,27 +44,27 @@ pub struct CPU {
     // memory: [u8; 0xffff],
 }
 
-pub enum Flag {
-    Carry,
-    Zero,
-    Interrupt,
-    Decimal,
-    Overflow,
-    Negative,
-}
+// pub enum Flag {
+//     CARRY,
+//     ZERO,
+//     INTERRUPT,
+//     DECIMAL,
+//     OVERFLOW,
+//     NEGATIVE,
+// }
 
-impl Flag {
-    pub fn bit(&self) -> u8 {
-        match self {
-            Flag::Carry => 0,
-            Flag::Zero => 1,
-            Flag::Interrupt => 2,
-            Flag::Decimal => 3,
-            Flag::Overflow => 6,
-            Flag::Negative => 7,
-        }
-    }
-}
+// impl Flag {
+//     pub fn bit(&self) -> u8 {
+//         match self {
+//             StatusFlags::CARRY => 0,
+//             StatusFlags::ZERO => 1,
+//             StatusFlags::INTERRUPT => 2,
+//             StatusFlags::DECIMAL => 3,
+//             StatusFlags::OVERFLOW => 6,
+//             StatusFlags::NEGATIVE => 7,
+//         }
+//     }
+// }
 
 impl CPU {
     pub fn new() -> Self {
@@ -57,7 +73,7 @@ impl CPU {
             reg_y: 0,
             accumulator: 0,
             stack_pointer: 255,
-            flags: 0,
+            flags: StatusFlags::empty(),
             program_counter: 0,
             cycle_count: 0,
             memory: MemoryBus::new(CartridgeROM::dummy()),
@@ -72,7 +88,7 @@ impl CPU {
             reg_y: 0,
             accumulator: 0,
             stack_pointer: 0xfd,
-            flags: 0x24,
+            flags: StatusFlags::from_bits(0x24).unwrap(),
             program_counter: 0xc000,
             cycle_count: 0,
             memory: MemoryBus::new(match CartridgeROM::new(raw_bytes) {
@@ -84,18 +100,23 @@ impl CPU {
         }
     }
 
-    pub fn set_flag(&mut self, flag: Flag, bit: u8) {
-        if bit == 1 {
-            self.flags |= 1 << flag.bit();
-        } else if bit == 0 {
-            self.flags &= !(1 << flag.bit());
-        } else {
-            panic!("attempting to set flag to something that isn't 0 or 1");
-        }
+    pub fn set_flag(&mut self, flag: StatusFlags, bit: u8) {
+        self.flags.set(flag, bit == 1);
+        // if bit == 1 {
+        //     self.flags |= flag.value();
+        // } else if bit == 0 {
+        //     self.flags &= !(flag.value());
+        // } else {
+        //     panic!("attempting to set flag to something that isn't 0 or 1");
+        // }
     }
 
-    pub fn get_flag(&self, flag: Flag) -> u8 {
-        (self.flags & (1 << flag.bit())) >> flag.bit()
+    pub fn get_flag(&self, flag: StatusFlags) -> u8 {
+        if self.flags.contains(flag) {
+            1
+        } else {
+            0
+        }
     }
 
     pub fn tick(&mut self) {
@@ -228,12 +249,12 @@ impl CPU {
             ============================================================= */
             IN::ASL => {
                 if ins.mode == AddressingMode::Accumulator {
-                    self.set_flag(Flag::Carry, self.accumulator >> 7);
+                    self.set_flag(StatusFlags::CARRY, self.accumulator >> 7);
                     self.accumulator <<= 1;
                     self.set_zn_flags(self.accumulator);
                 } else {
                     let (mut val, addr) = self.fetch_value_keep_addr(ins);
-                    self.set_flag(Flag::Carry, val >> 7);
+                    self.set_flag(StatusFlags::CARRY, val >> 7);
                     val <<= 1;
                     self.set_zn_flags(val);
                     self.memory.write(addr, val);
@@ -244,13 +265,13 @@ impl CPU {
             IN::LSR => {
                 // TODO rmw
                 if ins.mode == AddressingMode::Accumulator {
-                    self.set_flag(Flag::Carry, self.accumulator & 1);
+                    self.set_flag(StatusFlags::CARRY, self.accumulator & 1);
                     self.accumulator >>= 1;
                     self.set_zn_flags(self.accumulator);
                 } else {
                     let (mut val, addr) = self.fetch_value_keep_addr(ins);
 
-                    self.set_flag(Flag::Carry, val & 1);
+                    self.set_flag(StatusFlags::CARRY, val & 1);
                     val >>= 1;
                     self.set_zn_flags(val);
                     self.memory.write(addr, val);
@@ -259,15 +280,15 @@ impl CPU {
 
             IN::ROL => {
                 if ins.mode == AddressingMode::Accumulator {
-                    let old_c = self.get_flag(Flag::Carry);
-                    self.set_flag(Flag::Carry, self.accumulator >> 7);
+                    let old_c = self.get_flag(StatusFlags::CARRY);
+                    self.set_flag(StatusFlags::CARRY, self.accumulator >> 7);
                     self.accumulator <<= 1;
                     self.accumulator |= old_c;
                     self.set_zn_flags(self.accumulator);
                 } else {
                     let (mut val, addr) = self.fetch_value_keep_addr(ins);
-                    let old_c = self.get_flag(Flag::Carry);
-                    self.set_flag(Flag::Carry, val >> 7);
+                    let old_c = self.get_flag(StatusFlags::CARRY);
+                    self.set_flag(StatusFlags::CARRY, val >> 7);
                     val <<= 1;
                     val |= old_c;
                     self.set_zn_flags(val);
@@ -277,15 +298,15 @@ impl CPU {
 
             IN::ROR => {
                 if ins.mode == AddressingMode::Accumulator {
-                    let old_c = self.get_flag(Flag::Carry);
-                    self.set_flag(Flag::Carry, self.accumulator & 1);
+                    let old_c = self.get_flag(StatusFlags::CARRY);
+                    self.set_flag(StatusFlags::CARRY, self.accumulator & 1);
                     self.accumulator >>= 1;
                     self.accumulator |= old_c << 7;
                     self.set_zn_flags(self.accumulator);
                 } else {
                     let (mut val, addr) = self.fetch_value_keep_addr(ins);
-                    let old_c = self.get_flag(Flag::Carry);
-                    self.set_flag(Flag::Carry, val & 1);
+                    let old_c = self.get_flag(StatusFlags::CARRY);
+                    self.set_flag(StatusFlags::CARRY, val & 1);
                     val >>= 1;
                     val |= old_c << 7;
                     self.set_zn_flags(val);
@@ -302,9 +323,9 @@ impl CPU {
 
             IN::BIT => {
                 let val = self.fetch_value(ins);
-                self.set_flag(Flag::Zero, (val & self.accumulator == 0) as u8);
-                self.set_flag(Flag::Overflow, val >> 6 & 1);
-                self.set_flag(Flag::Negative, val >> 7);
+                self.set_flag(StatusFlags::ZERO, (val & self.accumulator == 0) as u8);
+                self.set_flag(StatusFlags::OVERFLOW, val >> 6 & 1);
+                self.set_flag(StatusFlags::NEGATIVE, val >> 7);
             }
 
             IN::ORA => {
@@ -321,29 +342,38 @@ impl CPU {
             ============================================================= */
             IN::CMP => {
                 let val = self.fetch_value(ins);
-                self.set_flag(Flag::Carry, if self.accumulator >= val { 1 } else { 0 });
-                self.set_flag(Flag::Zero, if self.accumulator == val { 1 } else { 0 });
-                self.set_flag(Flag::Negative, self.accumulator.wrapping_sub(val) >> 7);
+                self.set_flag(
+                    StatusFlags::CARRY,
+                    if self.accumulator >= val { 1 } else { 0 },
+                );
+                self.set_flag(
+                    StatusFlags::ZERO,
+                    if self.accumulator == val { 1 } else { 0 },
+                );
+                self.set_flag(
+                    StatusFlags::NEGATIVE,
+                    self.accumulator.wrapping_sub(val) >> 7,
+                );
             }
 
             IN::CPX => {
                 let val = self.fetch_value(ins);
-                self.set_flag(Flag::Carry, if self.reg_x >= val { 1 } else { 0 });
-                self.set_flag(Flag::Zero, if self.reg_x == val { 1 } else { 0 });
-                self.set_flag(Flag::Negative, self.reg_x.wrapping_sub(val) >> 7);
+                self.set_flag(StatusFlags::CARRY, if self.reg_x >= val { 1 } else { 0 });
+                self.set_flag(StatusFlags::ZERO, if self.reg_x == val { 1 } else { 0 });
+                self.set_flag(StatusFlags::NEGATIVE, self.reg_x.wrapping_sub(val) >> 7);
             }
 
             IN::CPY => {
                 let val = self.fetch_value(ins);
-                self.set_flag(Flag::Carry, if self.reg_y >= val { 1 } else { 0 });
-                self.set_flag(Flag::Zero, if self.reg_y == val { 1 } else { 0 });
-                self.set_flag(Flag::Negative, self.reg_y.wrapping_sub(val) >> 7);
+                self.set_flag(StatusFlags::CARRY, if self.reg_y >= val { 1 } else { 0 });
+                self.set_flag(StatusFlags::ZERO, if self.reg_y == val { 1 } else { 0 });
+                self.set_flag(StatusFlags::NEGATIVE, self.reg_y.wrapping_sub(val) >> 7);
             }
 
             /* BRANCH INSTRUCTIONS =========================================
             ============================================================= */
             IN::BCC => {
-                if self.get_flag(Flag::Carry) == 0 {
+                if self.get_flag(StatusFlags::CARRY) == 0 {
                     self.cycle_count += 1;
                     // TODO find better way?
                     let byte = self.get_next_u8();
@@ -359,7 +389,7 @@ impl CPU {
             }
 
             IN::BCS => {
-                if self.get_flag(Flag::Carry) == 1 {
+                if self.get_flag(StatusFlags::CARRY) == 1 {
                     self.cycle_count += 1;
                     // TODO check that this works
                     let byte = self.get_next_u8();
@@ -375,7 +405,7 @@ impl CPU {
             }
 
             IN::BEQ => {
-                if self.get_flag(Flag::Zero) == 1 {
+                if self.get_flag(StatusFlags::ZERO) == 1 {
                     self.cycle_count += 1;
                     let byte = self.get_next_u8();
                     let branch = if byte & 0b10000000 != 0 {
@@ -390,7 +420,7 @@ impl CPU {
             }
 
             IN::BNE => {
-                if self.get_flag(Flag::Zero) == 0 {
+                if self.get_flag(StatusFlags::ZERO) == 0 {
                     self.cycle_count += 1;
                     let byte = self.get_next_u8();
                     let branch = if byte & 0b10000000 != 0 {
@@ -405,7 +435,7 @@ impl CPU {
             }
 
             IN::BPL => {
-                if self.get_flag(Flag::Negative) == 0 {
+                if self.get_flag(StatusFlags::NEGATIVE) == 0 {
                     self.cycle_count += 1;
                     let byte = self.get_next_u8();
                     let branch = if byte & 0b10000000 != 0 {
@@ -420,7 +450,7 @@ impl CPU {
             }
 
             IN::BMI => {
-                if self.get_flag(Flag::Negative) == 1 {
+                if self.get_flag(StatusFlags::NEGATIVE) == 1 {
                     self.cycle_count += 1;
                     let byte = self.get_next_u8();
                     let branch = if byte & 0b10000000 != 0 {
@@ -435,7 +465,7 @@ impl CPU {
             }
 
             IN::BVC => {
-                if self.get_flag(Flag::Overflow) == 0 {
+                if self.get_flag(StatusFlags::OVERFLOW) == 0 {
                     self.cycle_count += 1;
                     let byte = self.get_next_u8();
                     let branch = if byte & 0b10000000 != 0 {
@@ -450,7 +480,7 @@ impl CPU {
             }
 
             IN::BVS => {
-                if self.get_flag(Flag::Overflow) == 1 {
+                if self.get_flag(StatusFlags::OVERFLOW) == 1 {
                     self.cycle_count += 1;
                     let byte = self.get_next_u8();
                     let branch = if byte & 0b10000000 != 0 {
@@ -493,7 +523,8 @@ impl CPU {
             }
 
             IN::RTI => {
-                self.flags = self.pull_stack() & 0b11101111 | 0b00100000;
+                self.flags =
+                    StatusFlags::from_bits(self.pull_stack() & 0b11101111 | 0b00100000).unwrap();
                 let lb = self.pull_stack() as u16;
                 let hb = self.pull_stack() as u16;
                 self.program_counter = make16!(hb, lb);
@@ -526,7 +557,7 @@ impl CPU {
             }
 
             IN::PHP => {
-                self.push_stack(self.flags | 0b00110000);
+                self.push_stack(self.flags.bits() | 0b00110000);
             }
 
             IN::PLA => {
@@ -535,39 +566,40 @@ impl CPU {
             }
 
             IN::PLP => {
-                self.flags = self.pull_stack() & 0b11101111 | 0b00100000;
+                self.flags =
+                    StatusFlags::from_bits(self.pull_stack() & 0b11101111 | 0b00100000).unwrap();
                 // TODO the I flag needs to be delayed 1 instr
             }
 
             /* FLAG INSTRUCTIONS ===========================================
             ============================================================= */
             IN::CLC => {
-                self.set_flag(Flag::Carry, 0);
+                self.set_flag(StatusFlags::CARRY, 0);
             }
 
             IN::CLD => {
-                self.set_flag(Flag::Decimal, 0);
+                self.set_flag(StatusFlags::DECIMAL, 0);
             }
 
             IN::CLI => {
                 // TODO this needs to be delayed by 1 instruction
-                self.set_flag(Flag::Interrupt, 0);
+                self.set_flag(StatusFlags::INTERRUPT, 0);
             }
 
             IN::CLV => {
-                self.set_flag(Flag::Overflow, 0);
+                self.set_flag(StatusFlags::OVERFLOW, 0);
             }
 
             IN::SEC => {
-                self.set_flag(Flag::Carry, 1);
+                self.set_flag(StatusFlags::CARRY, 1);
             }
 
             IN::SED => {
-                self.set_flag(Flag::Decimal, 1);
+                self.set_flag(StatusFlags::DECIMAL, 1);
             }
 
             IN::SEI => {
-                self.set_flag(Flag::Interrupt, 1);
+                self.set_flag(StatusFlags::INTERRUPT, 1);
             }
 
             /* OTHER INSTRUCTIONS ==========================================
@@ -579,22 +611,23 @@ impl CPU {
     }
 
     fn add_to_acc(&mut self, val: u8) {
-        let sum = (self.accumulator as u16) + (val as u16) + (self.get_flag(Flag::Carry) as u16);
+        let sum =
+            (self.accumulator as u16) + (val as u16) + (self.get_flag(StatusFlags::CARRY) as u16);
 
         let carry = sum > 0xff;
 
         if carry {
-            self.set_flag(Flag::Carry, 1);
+            self.set_flag(StatusFlags::CARRY, 1);
         } else {
-            self.set_flag(Flag::Carry, 0);
+            self.set_flag(StatusFlags::CARRY, 0);
         }
 
         let result = sum as u8;
 
         if (val ^ result) & (result ^ self.accumulator) & 0x80 != 0 {
-            self.set_flag(Flag::Overflow, 1);
+            self.set_flag(StatusFlags::OVERFLOW, 1);
         } else {
-            self.set_flag(Flag::Overflow, 0);
+            self.set_flag(StatusFlags::OVERFLOW, 0);
         }
 
         self.accumulator = result;
@@ -735,8 +768,8 @@ impl CPU {
     }
 
     fn set_zn_flags(&mut self, val: u8) {
-        self.set_flag(Flag::Zero, if val == 0 { 1 } else { 0 });
-        self.set_flag(Flag::Negative, val >> 7);
+        self.set_flag(StatusFlags::ZERO, if val == 0 { 1 } else { 0 });
+        self.set_flag(StatusFlags::NEGATIVE, val >> 7);
     }
 
     fn inc_sp(&mut self) {

@@ -1,5 +1,5 @@
 // TAX, TXA, TAY, TYA
-use crate::cpu::{instructions, Flag, CPU};
+use crate::cpu::{instructions, StatusFlags, CPU};
 use instructions as IN;
 
 #[test]
@@ -14,8 +14,8 @@ fn test_tax() {
 
     assert_eq!(cpu.accumulator, 0x12);
     assert_eq!(cpu.reg_x, 0x12);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 }
 
 #[test]
@@ -30,8 +30,8 @@ fn test_txa() {
 
     assert_eq!(cpu.accumulator, 0x84);
     assert_eq!(cpu.reg_x, 0x84);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
 }
 
 #[test]
@@ -46,8 +46,8 @@ fn test_tay() {
 
     assert_eq!(cpu.accumulator, 0x12);
     assert_eq!(cpu.reg_y, 0x12);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 }
 
 #[test]
@@ -62,6 +62,6 @@ fn test_tya() {
 
     assert_eq!(cpu.accumulator, 0x84);
     assert_eq!(cpu.reg_y, 0x84);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
 }

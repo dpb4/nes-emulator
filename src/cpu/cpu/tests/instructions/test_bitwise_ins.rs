@@ -2,7 +2,7 @@
 
 use crate::cpu::{
     cpu::tests::{get_example_byte, set_byte_example, set_multiple_bytes},
-    instructions, Flag, CPU,
+    instructions, StatusFlags, CPU,
 };
 use instructions as IN;
 
@@ -22,8 +22,8 @@ fn test_and() {
 
     assert_eq!(cpu.program_counter, 2);
     assert_eq!(cpu.accumulator, 0b11010000 as u8);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
     assert_eq!(cpu.cycle_count, 2);
 
     cpu.accumulator = 255;
@@ -31,8 +31,8 @@ fn test_and() {
 
     assert_eq!(cpu.program_counter, 4);
     assert_eq!(cpu.accumulator, get_example_byte(0b00001110));
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
     assert_eq!(cpu.cycle_count, 5);
 }
 
@@ -46,21 +46,21 @@ fn test_bit() {
 
     cpu.execute(IN::BIT_A);
 
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Overflow), 1);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::OVERFLOW), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 
     cpu.execute(IN::BIT_A);
 
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Overflow), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::OVERFLOW), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
 
     cpu.execute(IN::BIT_A);
 
-    assert_eq!(cpu.get_flag(Flag::Zero), 1);
-    assert_eq!(cpu.get_flag(Flag::Overflow), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::OVERFLOW), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 }
 
 #[test]
@@ -72,22 +72,22 @@ fn test_eor() {
     cpu.accumulator = 255;
     cpu.execute(IN::EOR_IM);
 
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
     assert_eq!(cpu.accumulator, !0xf0);
 
     cpu.accumulator = 255;
     cpu.execute(IN::EOR_IM);
 
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
     assert_eq!(cpu.accumulator, !0x0);
 
     cpu.accumulator = 255;
     cpu.execute(IN::EOR_IM);
 
-    assert_eq!(cpu.get_flag(Flag::Zero), 1);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
     assert_eq!(cpu.accumulator, !0xff);
 }
 #[test]
@@ -99,21 +99,21 @@ fn test_ora() {
     cpu.accumulator = 0xab;
     cpu.execute(IN::ORA_IM);
 
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
     assert_eq!(cpu.accumulator, 0xfb);
 
     cpu.accumulator = 0xab;
     cpu.execute(IN::ORA_IM);
 
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
     assert_eq!(cpu.accumulator, 0xab);
 
     cpu.accumulator = 0x0;
     cpu.execute(IN::ORA_IM);
 
-    assert_eq!(cpu.get_flag(Flag::Zero), 1);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
     assert_eq!(cpu.accumulator, 0x00);
 }

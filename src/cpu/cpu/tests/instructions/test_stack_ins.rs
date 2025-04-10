@@ -1,5 +1,5 @@
 // PHA, PLS, PHP, PLP, TXS, TSX
-use crate::cpu::{instructions, Flag, CPU};
+use crate::cpu::{instructions, StatusFlags, CPU};
 use instructions as IN;
 
 #[test]
@@ -30,11 +30,11 @@ fn test_pha() {
 fn test_php() {
     let mut cpu = CPU::new();
 
-    cpu.flags = 0b10101100;
+    cpu.flags = StatusFlags::from_bits(0b10101100).unwrap();
 
     cpu.execute(IN::PHP);
 
-    cpu.flags = 0b10010111;
+    cpu.flags = StatusFlags::from_bits(0b10010111).unwrap();
 
     cpu.execute(IN::PHP);
 
@@ -82,17 +82,17 @@ fn test_plp() {
 
     cpu.execute(IN::PLP);
 
-    assert_eq!(cpu.flags, 0b00110000);
+    assert_eq!(cpu.flags.bits(), 0b00110000);
     assert_eq!(cpu.stack_pointer, 254);
 
     cpu.execute(IN::PLP);
 
-    assert_eq!(cpu.flags, 0b10111100);
+    assert_eq!(cpu.flags.bits(), 0b10111100);
     assert_eq!(cpu.stack_pointer, 255);
 
     cpu.execute(IN::PLP);
 
-    assert_eq!(cpu.flags, 0);
+    assert_eq!(cpu.flags.bits(), 0);
     assert_eq!(cpu.stack_pointer, 0);
 }
 
@@ -116,22 +116,22 @@ fn test_tsx() {
     cpu.execute(IN::TSX);
 
     assert_eq!(cpu.reg_x, 0);
-    assert_eq!(cpu.get_flag(Flag::Zero), 1);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 
     cpu.stack_pointer = 0x3f;
 
     cpu.execute(IN::TSX);
 
     assert_eq!(cpu.reg_x, 0x3f);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 
     cpu.stack_pointer = 0xde;
 
     cpu.execute(IN::TSX);
 
     assert_eq!(cpu.reg_x, 0xde);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
 }

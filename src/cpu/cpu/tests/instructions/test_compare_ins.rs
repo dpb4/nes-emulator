@@ -13,15 +13,15 @@ fn test_cmp() {
 
     cpu.execute(IN::CMP_IM);
 
-    assert_eq!(cpu.flags, 0b00000001);
+    assert_eq!(cpu.flags.bits(), 0b00000001);
 
     cpu.execute(IN::CMP_IM);
 
-    assert_eq!(cpu.flags, 0b10000000);
+    assert_eq!(cpu.flags.bits(), 0b10000000);
 
     cpu.execute(IN::CMP_IM);
 
-    assert_eq!(cpu.flags, 0b00000011);
+    assert_eq!(cpu.flags.bits(), 0b00000011);
 }
 
 #[test]
@@ -35,15 +35,15 @@ fn test_cpx() {
 
     cpu.execute(IN::CPX_IM);
 
-    assert_eq!(cpu.flags, 0b00000001);
+    assert_eq!(cpu.flags.bits(), 0b00000001);
 
     cpu.execute(IN::CPX_IM);
 
-    assert_eq!(cpu.flags, 0b10000000);
+    assert_eq!(cpu.flags.bits(), 0b10000000);
 
     cpu.execute(IN::CPX_IM);
 
-    assert_eq!(cpu.flags, 0b00000011);
+    assert_eq!(cpu.flags.bits(), 0b00000011);
 }
 
 #[test]
@@ -57,13 +57,13 @@ fn test_cpy() {
 
     cpu.execute(IN::CPY_IM);
 
-    assert_eq!(cpu.flags, 0b00000001);
+    assert_eq!(cpu.flags.bits(), 0b00000001);
 
     cpu.execute(IN::CPY_IM);
 
-    assert_eq!(cpu.flags, 0b10000000);
+    assert_eq!(cpu.flags.bits(), 0b10000000);
 
     cpu.execute(IN::CPY_IM);
 
-    assert_eq!(cpu.flags, 0b00000011);
+    assert_eq!(cpu.flags.bits(), 0b00000011);
 }

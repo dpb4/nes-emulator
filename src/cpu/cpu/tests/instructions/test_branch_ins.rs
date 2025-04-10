@@ -1,13 +1,13 @@
 // BCC, BCS, BEQ, BNE, BPL, BMI, BVC, BVS
 
-use crate::cpu::{cpu::tests::set_multiple_bytes, instructions, Flag, CPU};
+use crate::cpu::{cpu::tests::set_multiple_bytes, instructions, StatusFlags, CPU};
 use instructions as IN;
 
 #[test]
 fn test_bcs() {
     let mut cpu = CPU::new();
 
-    cpu.set_flag(Flag::Carry, 1);
+    cpu.set_flag(StatusFlags::CARRY, 1);
     set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
 
     cpu.program_counter = 2111;
@@ -26,7 +26,7 @@ fn test_bcs() {
     assert_eq!(cpu.cycle_count, 9);
     assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
 
-    cpu.set_flag(Flag::Carry, 0);
+    cpu.set_flag(StatusFlags::CARRY, 0);
     cpu.execute(IN::BCS);
 
     assert_eq!(cpu.cycle_count, 11);
@@ -37,7 +37,7 @@ fn test_bcs() {
 fn test_bcc() {
     let mut cpu = CPU::new();
 
-    cpu.set_flag(Flag::Carry, 0);
+    cpu.set_flag(StatusFlags::CARRY, 0);
     set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
 
     cpu.program_counter = 2111;
@@ -56,7 +56,7 @@ fn test_bcc() {
     assert_eq!(cpu.cycle_count, 9);
     assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
 
-    cpu.set_flag(Flag::Carry, 1);
+    cpu.set_flag(StatusFlags::CARRY, 1);
     cpu.execute(IN::BCC);
 
     assert_eq!(cpu.cycle_count, 11);
@@ -67,7 +67,7 @@ fn test_bcc() {
 fn test_beq() {
     let mut cpu = CPU::new();
 
-    cpu.set_flag(Flag::Zero, 1);
+    cpu.set_flag(StatusFlags::ZERO, 1);
     set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
 
     cpu.program_counter = 2111;
@@ -86,7 +86,7 @@ fn test_beq() {
     assert_eq!(cpu.cycle_count, 9);
     assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
 
-    cpu.set_flag(Flag::Zero, 0);
+    cpu.set_flag(StatusFlags::ZERO, 0);
     cpu.execute(IN::BEQ);
 
     assert_eq!(cpu.cycle_count, 11);
@@ -97,7 +97,7 @@ fn test_beq() {
 fn test_bne() {
     let mut cpu = CPU::new();
 
-    cpu.set_flag(Flag::Zero, 0);
+    cpu.set_flag(StatusFlags::ZERO, 0);
     set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
 
     cpu.program_counter = 2111;
@@ -116,7 +116,7 @@ fn test_bne() {
     assert_eq!(cpu.cycle_count, 9);
     assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
 
-    cpu.set_flag(Flag::Zero, 1);
+    cpu.set_flag(StatusFlags::ZERO, 1);
     cpu.execute(IN::BNE);
 
     assert_eq!(cpu.cycle_count, 11);
@@ -127,7 +127,7 @@ fn test_bne() {
 fn test_bmi() {
     let mut cpu = CPU::new();
 
-    cpu.set_flag(Flag::Negative, 1);
+    cpu.set_flag(StatusFlags::NEGATIVE, 1);
     set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
 
     cpu.program_counter = 2111;
@@ -146,7 +146,7 @@ fn test_bmi() {
     assert_eq!(cpu.cycle_count, 9);
     assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
 
-    cpu.set_flag(Flag::Negative, 0);
+    cpu.set_flag(StatusFlags::NEGATIVE, 0);
     cpu.execute(IN::BMI);
 
     assert_eq!(cpu.cycle_count, 11);
@@ -157,7 +157,7 @@ fn test_bmi() {
 fn test_bpl() {
     let mut cpu = CPU::new();
 
-    cpu.set_flag(Flag::Negative, 0);
+    cpu.set_flag(StatusFlags::NEGATIVE, 0);
     set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
 
     cpu.program_counter = 2111;
@@ -176,7 +176,7 @@ fn test_bpl() {
     assert_eq!(cpu.cycle_count, 9);
     assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
 
-    cpu.set_flag(Flag::Negative, 1);
+    cpu.set_flag(StatusFlags::NEGATIVE, 1);
     cpu.execute(IN::BPL);
 
     assert_eq!(cpu.cycle_count, 11);
@@ -187,7 +187,7 @@ fn test_bpl() {
 fn test_bvc() {
     let mut cpu = CPU::new();
 
-    cpu.set_flag(Flag::Overflow, 0);
+    cpu.set_flag(StatusFlags::OVERFLOW, 0);
     set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
 
     cpu.program_counter = 2111;
@@ -206,7 +206,7 @@ fn test_bvc() {
     assert_eq!(cpu.cycle_count, 9);
     assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
 
-    cpu.set_flag(Flag::Overflow, 1);
+    cpu.set_flag(StatusFlags::OVERFLOW, 1);
     cpu.execute(IN::BVC);
 
     assert_eq!(cpu.cycle_count, 11);
@@ -217,7 +217,7 @@ fn test_bvc() {
 fn test_bvs() {
     let mut cpu = CPU::new();
 
-    cpu.set_flag(Flag::Overflow, 1);
+    cpu.set_flag(StatusFlags::OVERFLOW, 1);
     set_multiple_bytes(&mut cpu, 2111, &vec![0, 0, 0, 3, 0, 0, 0, 0, 0xff, 0x10]);
 
     cpu.program_counter = 2111;
@@ -236,7 +236,7 @@ fn test_bvs() {
     assert_eq!(cpu.cycle_count, 9);
     assert_eq!(cpu.program_counter, (2113 + 2 + 3) + 2 - 1);
 
-    cpu.set_flag(Flag::Overflow, 0);
+    cpu.set_flag(StatusFlags::OVERFLOW, 0);
     cpu.execute(IN::BVS);
 
     assert_eq!(cpu.cycle_count, 11);

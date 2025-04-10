@@ -1,5 +1,5 @@
 // LDA, STA, LDX, STX, LDY, STY
-use crate::cpu::{cpu::tests::set_multiple_bytes, instructions, Flag, CPU};
+use crate::cpu::{cpu::tests::set_multiple_bytes, instructions, StatusFlags, CPU};
 use instructions as IN;
 
 #[test]
@@ -10,18 +10,18 @@ fn test_lda() {
 
     cpu.execute(IN::LDA_IM);
     assert_eq!(cpu.accumulator, 0xab);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
 
     cpu.execute(IN::LDA_IM);
     assert_eq!(cpu.accumulator, 0x00);
-    assert_eq!(cpu.get_flag(Flag::Zero), 1);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 
     cpu.execute(IN::LDA_IM);
     assert_eq!(cpu.accumulator, 0x05);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 }
 
 #[test]
@@ -32,18 +32,18 @@ fn test_ldx() {
 
     cpu.execute(IN::LDX_IM);
     assert_eq!(cpu.reg_x, 0xab);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
 
     cpu.execute(IN::LDX_IM);
     assert_eq!(cpu.reg_x, 0x00);
-    assert_eq!(cpu.get_flag(Flag::Zero), 1);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 
     cpu.execute(IN::LDX_IM);
     assert_eq!(cpu.reg_x, 0x05);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 }
 
 #[test]
@@ -54,18 +54,18 @@ fn test_ldy() {
 
     cpu.execute(IN::LDY_IM);
     assert_eq!(cpu.reg_y, 0xab);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 1);
 
     cpu.execute(IN::LDY_IM);
     assert_eq!(cpu.reg_y, 0x00);
-    assert_eq!(cpu.get_flag(Flag::Zero), 1);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 
     cpu.execute(IN::LDY_IM);
     assert_eq!(cpu.reg_y, 0x05);
-    assert_eq!(cpu.get_flag(Flag::Zero), 0);
-    assert_eq!(cpu.get_flag(Flag::Negative), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::ZERO), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::NEGATIVE), 0);
 }
 
 #[test]
