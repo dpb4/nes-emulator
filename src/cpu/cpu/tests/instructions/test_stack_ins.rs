@@ -30,11 +30,11 @@ fn test_pha() {
 fn test_php() {
     let mut cpu = CPU::new();
 
-    cpu.flags = StatusFlags::from_bits(0b10101100).unwrap();
+    cpu.flags = StatusFlags::from_bits_truncate(0b10101100);
 
     cpu.execute(IN::PHP);
 
-    cpu.flags = StatusFlags::from_bits(0b10010111).unwrap();
+    cpu.flags = StatusFlags::from_bits_truncate(0b10010111);
 
     cpu.execute(IN::PHP);
 

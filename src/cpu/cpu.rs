@@ -41,30 +41,7 @@ pub struct CPU {
 
     logged: bool,
     pub log: String,
-    // memory: [u8; 0xffff],
 }
-
-// pub enum Flag {
-//     CARRY,
-//     ZERO,
-//     INTERRUPT,
-//     DECIMAL,
-//     OVERFLOW,
-//     NEGATIVE,
-// }
-
-// impl Flag {
-//     pub fn bit(&self) -> u8 {
-//         match self {
-//             StatusFlags::CARRY => 0,
-//             StatusFlags::ZERO => 1,
-//             StatusFlags::INTERRUPT => 2,
-//             StatusFlags::DECIMAL => 3,
-//             StatusFlags::OVERFLOW => 6,
-//             StatusFlags::NEGATIVE => 7,
-//         }
-//     }
-// }
 
 impl CPU {
     pub fn new() -> Self {
@@ -524,7 +501,7 @@ impl CPU {
 
             IN::RTI => {
                 self.flags =
-                    StatusFlags::from_bits(self.pull_stack() & 0b11101111 | 0b00100000).unwrap();
+                    StatusFlags::from_bits_truncate(self.pull_stack() & 0b11101111 | 0b00100000);
                 let lb = self.pull_stack() as u16;
                 let hb = self.pull_stack() as u16;
                 self.program_counter = make16!(hb, lb);
@@ -567,7 +544,7 @@ impl CPU {
 
             IN::PLP => {
                 self.flags =
-                    StatusFlags::from_bits(self.pull_stack() & 0b11101111 | 0b00100000).unwrap();
+                    StatusFlags::from_bits_truncate(self.pull_stack() & 0b11101111 | 0b00100000);
                 // TODO the I flag needs to be delayed 1 instr
             }
 
