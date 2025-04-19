@@ -1,3 +1,5 @@
+use crate::ppu::Mirroring;
+
 pub const NES_TAG: [u8; 4] = [0x4e, 0x45, 0x53, 0x1a]; // string "NES<CTRL-Z>" in ascii
 pub const PRG_ROM_PAGE_SIZE: usize = 0x4000;
 pub const CHR_ROM_PAGE_SIZE: usize = 0x2000;
@@ -8,13 +10,6 @@ pub struct CartridgeROM {
     pub chr_rom: Vec<u8>,
     pub mapper: u8,
     pub screen_mirroring: Mirroring,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Mirroring {
-    Vertical,
-    Horizontal,
-    FourScreen,
 }
 
 impl CartridgeROM {

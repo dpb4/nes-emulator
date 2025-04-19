@@ -628,28 +628,22 @@ impl CPU {
     //     return self.memory[address as usize];
     // }
 
-    pub fn get_addr_8bit(&self, address: u8, mode: AddressingMode) -> u16 {
+    pub fn get_addr_8bit(&mut self, address: u8, mode: AddressingMode) -> u16 {
         use AddressingMode as M;
         match mode {
             M::ZeroPage => address as u16,
             M::ZeroPageX => self.reg_x.wrapping_add(address) as u16,
             M::ZeroPageY => self.reg_y.wrapping_add(address) as u16,
             M::IndexedIndirect => {
-                //TODO check this
-                make16!(
-                    self.memory
-                        .read(self.get_addr_8bit(address.wrapping_add(1), M::ZeroPageX)),
-                    self.memory.read(self.get_addr_8bit(address, M::ZeroPageX))
-                )
+                let hi = self.get_addr_8bit(address.wrapping_add(1), M::ZeroPageX);
+                let lo = self.get_addr_8bit(address, M::ZeroPageX);
+                make16!(self.memory.read(hi), self.memory.read(lo))
             }
             M::IndirectIndexed => {
                 // TODO add a method for this
-                make16!(
-                    self.memory
-                        .read(self.get_addr_8bit(address.wrapping_add(1), M::ZeroPage)),
-                    self.memory.read(self.get_addr_8bit(address, M::ZeroPage))
-                )
-                .wrapping_add(self.reg_y as u16)
+                let hi = self.get_addr_8bit(address.wrapping_add(1), M::ZeroPage);
+                let lo = self.get_addr_8bit(address, M::ZeroPage);
+                make16!(self.memory.read(hi), self.memory.read(lo)).wrapping_add(self.reg_y as u16)
             }
             M::Relative | M::Immediate | M::Accumulator | M::Implicit => {
                 panic!("{:?} does not need memory address", mode)
@@ -660,7 +654,7 @@ impl CPU {
         }
     }
 
-    pub fn get_addr_16bit(&self, address: u16, mode: AddressingMode) -> u16 {
+    pub fn get_addr_16bit(&mut self, address: u16, mode: AddressingMode) -> u16 {
         use AddressingMode as M;
         match mode {
             M::Indirect => {
@@ -681,12 +675,14 @@ impl CPU {
         }
     }
 
-    pub fn read_8bit(&self, address: u8, mode: AddressingMode) -> u8 {
-        self.memory.read(self.get_addr_8bit(address, mode))
+    pub fn read_8bit(&mut self, address: u8, mode: AddressingMode) -> u8 {
+        let addr = self.get_addr_8bit(address, mode);
+        self.memory.read(addr)
     }
 
-    pub fn read_16bit(&self, address: u16, mode: AddressingMode) -> u8 {
-        self.memory.read(self.get_addr_16bit(address, mode))
+    pub fn read_16bit(&mut self, address: u16, mode: AddressingMode) -> u8 {
+        let addr = self.get_addr_16bit(address, mode);
+        self.memory.read(addr)
     }
 
     fn fetch_value(&mut self, ins: Instruction) -> u8 {
@@ -734,11 +730,13 @@ impl CPU {
         match mode {
             M::ZeroPage | M::ZeroPageX | M::ZeroPageY | M::IndexedIndirect | M::IndirectIndexed => {
                 let addr = self.get_next_u8();
-                self.memory.write(self.get_addr_8bit(addr, mode), val);
+                let write_addr = self.get_addr_8bit(addr, mode);
+                self.memory.write(write_addr, val);
             }
             M::Absolute | M::AbsoluteX | M::AbsoluteY | M::Indirect => {
                 let addr = self.get_next_u16();
-                self.memory.write(self.get_addr_16bit(addr, mode), val);
+                let write_addr = self.get_addr_16bit(addr, mode);
+                self.memory.write(write_addr, val);
             }
             _ => panic!("cannot store value for {:?}", mode),
         }
@@ -757,7 +755,7 @@ impl CPU {
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     }
 
-    fn peek_stack(&self) -> u8 {
+    fn peek_stack(&mut self) -> u8 {
         self.memory.read(self.stack_pointer as u16 + STACK_START)
     }
 
@@ -807,7 +805,7 @@ impl CPU {
 
         let tmp = match ins.bytes {
             1 => match ins.opcode {
-                0x0a | 0x4a | 0x2a | 0x6a => format!("A "),
+                0x0a | 0x4a | 0x2a | 0x6a => "A ".to_string(),
                 _ => String::from(""),
             },
             2 => {
@@ -841,17 +839,14 @@ impl CPU {
                         "(${:02x}),Y = {:04x} @ {:04x} = {:02x}",
                         address,
                         self.memory.read(mem_addr.wrapping_sub(self.reg_y as u16)),
-                        self.memory.read(
-                            make16!(
-                                self.memory.read(
-                                    (mem_addr.wrapping_sub(self.reg_y as u16) as u16)
-                                        .wrapping_add(1)
-                                ),
-                                self.memory
-                                    .read(mem_addr.wrapping_sub(self.reg_y as u16) as u16)
-                            )
-                            .wrapping_add(self.reg_y as u16)
-                        ),
+                        {
+                            let hi = self
+                                .memory
+                                .read(mem_addr.wrapping_sub(self.reg_y as u16).wrapping_add(1));
+                            let lo = self.memory.read(mem_addr.wrapping_sub(self.reg_y as u16));
+                            self.memory
+                                .read(make16!(hi, lo).wrapping_add(self.reg_y as u16))
+                        },
                         stored_value
                     ),
                     AddressingMode::Implicit | AddressingMode::Relative => {
