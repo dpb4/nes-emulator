@@ -5,22 +5,22 @@ pub const PRG_ROM_PAGE_SIZE: usize = 0x4000;
 pub const CHR_ROM_PAGE_SIZE: usize = 0x2000;
 
 #[derive(Debug)]
-pub struct CartridgeROM {
+pub struct Cartridge {
     pub prg_rom: Vec<u8>,
     pub chr_rom: Vec<u8>,
     pub mapper: u8,
     pub screen_mirroring: Mirroring,
 }
 
-impl CartridgeROM {
-    pub fn new(raw_bytes: Vec<u8>) -> Result<CartridgeROM, String> {
+impl Cartridge {
+    pub fn new(raw_bytes: Vec<u8>) -> Result<Cartridge, &'static str> {
         if &raw_bytes[0..4] != NES_TAG {
-            return Err("file format is not iNES 1.0 (missing NES tag)".to_string());
+            return Err("file format is not iNES 1.0 (missing NES tag)");
         }
 
         let ines_ver = (raw_bytes[7] >> 2) & 0b11;
         if ines_ver != 0 {
-            return Err("iNES 2.0 format is not supported".to_string());
+            return Err("iNES 2.0 format is not supported");
         }
 
         let prg_rom_size = raw_bytes[4] as usize * PRG_ROM_PAGE_SIZE;
@@ -41,7 +41,7 @@ impl CartridgeROM {
 
         let mapper = (raw_bytes[7] & 0b1111_0000) | (raw_bytes[6] >> 4);
 
-        Ok(CartridgeROM {
+        Ok(Cartridge {
             prg_rom: raw_bytes[prg_rom_start..(prg_rom_start + prg_rom_size)].to_vec(),
             chr_rom: raw_bytes[chr_rom_start..(chr_rom_start + chr_rom_size)].to_vec(),
             mapper: mapper,

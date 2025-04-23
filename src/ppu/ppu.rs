@@ -1,32 +1,60 @@
 #![allow(non_snake_case)]
 
-use crate::ppu::ppu_registers::*;
+use crate::{
+    memory::{cartridge_rom::Cartridge, memory_bus::InterruptType},
+    ppu::ppu_registers::*,
+};
 
 #[derive(Debug)]
 pub struct PPU {
-    pub chr_rom: Vec<u8>,
     pub palette_table: [u8; 32],
     pub vram: [u8; 2048],
     pub oam_data: [u8; 256],
 
-    pub mirroring: Mirroring,
+    pub cart: Cartridge,
 
     pub regs: Registers,
 
     internal_data_buf: u8,
+
+    pub cycle_count: usize,
+    pub scanline: u16,
+
+    pub interrupt: Option<InterruptType>,
 }
 
 impl PPU {
-    pub fn new(chr_rom: Vec<u8>, mirroring: Mirroring) -> Self {
+    pub fn new(cart: Cartridge) -> Self {
         PPU {
-            chr_rom,
-            mirroring: mirroring,
             vram: [0; 2048],
             oam_data: [0; 64 * 4],
+            cart,
             palette_table: [0; 32],
             regs: Registers::new(),
             internal_data_buf: 0,
+            cycle_count: 0,
+            scanline: 0,
+            interrupt: None,
         }
+    }
+
+    pub fn tick(&mut self, cycles: usize) -> bool {
+        self.cycle_count += cycles;
+        if self.cycle_count >= 341 {
+            self.cycle_count -= 341;
+            self.scanline += 1;
+
+            if self.scanline == 241 && self.regs.ctrl.contains(ControlFlags::VBLANK_NMI_ENABLE) {
+                todo!("trigger nmi")
+            }
+
+            if self.scanline >= 262 {
+                self.scanline = 0;
+                self.regs.stat.remove(StatusFlags::VBLANK);
+                return true;
+            }
+        }
+        return false;
     }
 
     pub fn write_to_ppu_addr(&mut self, val: u8) {
@@ -35,7 +63,12 @@ impl PPU {
     }
 
     pub fn write_to_ctrl(&mut self, val: u8) {
+        let nmi_status_before = self.regs.ctrl.contains(ControlFlags::VBLANK_NMI_ENABLE);
         self.regs.ctrl = ControlFlags::from_bits_truncate(val);
+        let nmi_status_after = self.regs.ctrl.contains(ControlFlags::VBLANK_NMI_ENABLE);
+        if !nmi_status_before && nmi_status_after && self.regs.stat.contains(StatusFlags::VBLANK) {
+            todo!() // TODO trigger nmi interrupt
+        }
     }
 
     pub fn write_to_mask(&mut self, val: u8) {
@@ -91,6 +124,13 @@ impl PPU {
         }
     }
 
+    pub fn write_oam_dma(&mut self, buffer: &[u8; 256]) {
+        for x in buffer.iter() {
+            self.oam_data[self.regs.oam_addr as usize] = *x;
+            self.regs.oam_addr = self.regs.oam_addr.wrapping_add(1);
+        }
+    }
+
     pub fn read_oam_data(&self) -> u8 {
         self.regs.oam_data
     }
@@ -111,7 +151,7 @@ impl PPU {
             // TODO make these into constants?
             0..=0x1fff => {
                 let result = self.internal_data_buf;
-                self.internal_data_buf = self.chr_rom[addr as usize];
+                self.internal_data_buf = self.cart.chr_rom[addr as usize];
                 result
             }
             0x2000..=0x2fff => {
@@ -144,7 +184,7 @@ impl PPU {
         let mirrored_vram = addr & 0b10111111111111; // mirror down 0x3000-0x3eff to 0x2000 - 0x2eff
         let vram_index = mirrored_vram - 0x2000; // to vram vector
         let name_table = vram_index / 0x400;
-        match (&self.mirroring, name_table) {
+        match (&self.cart.screen_mirroring, name_table) {
             (Mirroring::Vertical, 2) | (Mirroring::Vertical, 3) => vram_index - 0x800,
             (Mirroring::Horizontal, 1) | (Mirroring::Horizontal, 2) => vram_index - 0x400,
             (Mirroring::Horizontal, 3) => vram_index - 0x800,
@@ -159,7 +199,7 @@ impl PPU {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Mirroring {
     Horizontal,
     Vertical,

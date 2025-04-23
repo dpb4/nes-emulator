@@ -4,6 +4,10 @@ pub mod ppu;
 
 use std::{fs::File, io::Write};
 
+use cpu::CPU;
+use memory::{cartridge_rom::Cartridge, memory_bus::MemoryBus};
+use ppu::PPU;
+
 #[macro_export]
 macro_rules! make16 {
     ($hi:expr, $lo:expr) => {
@@ -11,20 +15,40 @@ macro_rules! make16 {
     };
 }
 
-pub fn start(raw_bytes: Vec<u8>) {
-    let mut c = if raw_bytes.len() == 0 {
-        cpu::CPU::new()
-    } else {
-        cpu::CPU::new_program(raw_bytes, true)
-    };
+struct NESSystem {
+    cpu: CPU,
+    mem_bus: MemoryBus,
+}
 
-    for _ in 0..5000 {
-        c.tick();
+impl NESSystem {
+    pub fn new(raw_bytes: Vec<u8>) -> Result<Self, &'static str> {
+        Ok(NESSystem {
+            cpu: CPU::new_program(true),
+            mem_bus: MemoryBus::new(PPU::new(Cartridge::new(raw_bytes)?)),
+        })
     }
 
-    let mut file = File::create("logs/cpu.log").unwrap();
+    fn run_once() {
+        todo!()
+    }
+}
 
-    let _ = file.write_all(c.log.as_bytes());
+pub fn start(raw_bytes: Vec<u8>) {
+    // let mut c = cpu::CPU::new_program(true);
+
+    let mut n = NESSystem::new(raw_bytes).unwrap();
+
+    // let mut cart = Cartridge::dummy();
+
+    n.cpu.run_count(&mut n.mem_bus, 5000);
+    // for _ in 0..5000 {
+    //     let cycles = c.tick();
+    //     c.memory.tick_ppu(cycles);
+    // }
+
+    let mut log_file = File::create("logs/cpu.log").unwrap();
+
+    let _ = log_file.write_all(n.cpu.log.as_bytes());
 
     // println!("{}", c.log);
 }

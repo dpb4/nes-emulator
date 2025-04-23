@@ -1,7 +1,5 @@
 use crate::ppu::PPU;
 
-use super::cartridge_rom::CartridgeROM;
-
 pub const RAM_START: u16 = 0x0000;
 pub const RAM_END_MIRRORED: u16 = 0x1fff;
 pub const RAM_ADDR_MASK: u16 = 0b0000_0111_1111_1111;
@@ -14,18 +12,28 @@ pub const PRG_ROM_START: u16 = 0x8000;
 pub const PRG_ROM_END_MIRRORED: u16 = 0xffff;
 
 #[derive(Debug)]
+// pub struct MemoryBus {
+//     cpu_ram: [u8; 2048],
+//     prg_rom: Vec<u8>,
+//     ppu: PPU,
+// }
+
 pub struct MemoryBus {
-    cpu_vram: [u8; 2048],
-    prg_rom: Vec<u8>,
+    cpu_ram: [u8; 0x800],
     ppu: PPU,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum InterruptType {
+    NonMaskable, // NMI
+    Request,     // IRQ
+}
+
 impl MemoryBus {
-    pub fn new(rom: CartridgeROM) -> Self {
+    pub fn new(ppu: PPU) -> Self {
         MemoryBus {
-            cpu_vram: [0; 2048],
-            prg_rom: rom.prg_rom,
-            ppu: PPU::new(rom.chr_rom, rom.screen_mirroring),
+            cpu_ram: [0; 2048],
+            ppu,
         }
     }
 
@@ -33,7 +41,7 @@ impl MemoryBus {
         match addr {
             RAM_START..=RAM_END_MIRRORED => {
                 let truncated_addr = addr & RAM_ADDR_MASK;
-                self.cpu_vram[truncated_addr as usize]
+                self.cpu_ram[truncated_addr as usize]
             }
             PPU_REG_START..=PPU_REG_END_MIRRORED => match addr {
                 0x2000 | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
@@ -47,10 +55,10 @@ impl MemoryBus {
             },
             PRG_ROM_START..=PRG_ROM_END_MIRRORED => {
                 let mut prg_addr = addr - PRG_ROM_START;
-                if self.prg_rom.len() == 0x4000 && prg_addr >= 0x4000 {
+                if self.ppu.cart.prg_rom.len() == 0x4000 && prg_addr >= 0x4000 {
                     prg_addr %= 0x4000;
                 }
-                self.prg_rom[prg_addr as usize]
+                self.ppu.cart.prg_rom[prg_addr as usize]
             }
             _ => {
                 panic!("bad memory read at 0x{:x}", addr);
@@ -62,9 +70,9 @@ impl MemoryBus {
         match addr {
             RAM_START..=RAM_END_MIRRORED => {
                 let truncated_addr = addr & RAM_ADDR_MASK;
-                self.cpu_vram[truncated_addr as usize] = val;
+                self.cpu_ram[truncated_addr as usize] = val;
             }
-            PPU_REG_START..=PPU_REG_END_MIRRORED => match addr {
+            PPU_REG_START..=PPU_REG_END_MIRRORED => match addr & PPU_REG_ADDR_MASK {
                 0x2000 => self.ppu.write_to_ctrl(val),
                 0x2001 => self.ppu.write_to_mask(val),
                 0x2002 => panic!("attempting to write to PPU status (read only)"),
@@ -73,8 +81,17 @@ impl MemoryBus {
                 0x2005 => self.ppu.write_to_scrl(val),
                 0x2006 => self.ppu.write_to_ppu_addr(val),
                 0x2007 => self.ppu.write_to_data(val),
-                _ => self.write(addr & PPU_REG_ADDR_MASK, val),
+                _ => unreachable!(), // _ => self.write(addr & PPU_REG_ADDR_MASK, val),
             },
+            0x4014 => {
+                let mut buffer = [0; 256];
+                let hi = (val as u16) << 8;
+                for i in 0..256 {
+                    buffer[i as usize] = self.read(hi + i);
+                }
+
+                self.ppu.write_oam_dma(&buffer);
+            }
             PRG_ROM_START..=PRG_ROM_END_MIRRORED => {
                 panic!(
                     "attempting to write to rom space at 0x{:x} (val {val})",
@@ -85,5 +102,13 @@ impl MemoryBus {
                 panic!("bad memory write at 0x{:x} (val {val})", addr);
             }
         }
+    }
+
+    pub fn tick_ppu(&mut self, cycles: usize) {
+        self.ppu.tick(cycles * 3); // ppu clock cycles are 3x faster than cpu
+    }
+
+    pub fn poll_interrupt(&self) -> Option<InterruptType> {
+        self.ppu.interrupt
     }
 }

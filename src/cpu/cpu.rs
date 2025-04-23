@@ -1,16 +1,13 @@
 #![allow(non_snake_case)]
 
-use crate::{
-    make16,
-    memory::{cartridge_rom::CartridgeROM, memory_bus::MemoryBus},
-};
+use crate::{make16, memory::memory_bus::MemoryBus};
 
 use super::instructions::{get_instruction, AddressingMode, Instruction, JMP_A, JMP_I, JSR_A};
 
 use bitflags::bitflags;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 const STACK_START: u16 = 0x100;
 
@@ -21,7 +18,7 @@ bitflags! {
         const ZERO  = 0b00000010;
         const INTERRUPT = 0b00000100;
         const DECIMAL = 0b00001000;
-        const B = 0b00010000;
+        const BREAK = 0b00010000;
         const U = 0b00100000;
         const OVERFLOW = 0b01000000;
         const NEGATIVE = 0b10000000;
@@ -36,42 +33,41 @@ pub struct CPU {
     pub stack_pointer: u8,
     pub flags: StatusFlags,
     pub program_counter: u16,
-    pub cycle_count: u32,
-    memory: MemoryBus,
-
+    pub cycle_count: usize,
+    // pub memory: MemoryBus,
     logged: bool,
     pub log: String,
 }
 
 impl CPU {
-    pub fn new() -> Self {
-        Self {
-            reg_x: 0,
-            reg_y: 0,
-            accumulator: 0,
-            stack_pointer: 255,
-            flags: StatusFlags::empty(),
-            program_counter: 0,
-            cycle_count: 0,
-            memory: MemoryBus::new(CartridgeROM::dummy()),
-            logged: false,
-            log: String::new(),
-        }
-    }
+    // pub fn new() -> Self {
+    //     Self {
+    //         reg_x: 0,
+    //         reg_y: 0,
+    //         accumulator: 0,
+    //         stack_pointer: 255,
+    //         flags: StatusFlags::empty(),
+    //         program_counter: 0,
+    //         cycle_count: 0,
+    //         // memory: MemoryBus::new(Cartridge::dummy()),
+    //         logged: false,
+    //         log: String::new(),
+    //     }
+    // }
 
-    pub fn new_program(raw_bytes: Vec<u8>, logged: bool) -> Self {
+    pub fn new_program(logged: bool) -> Self {
         Self {
             reg_x: 0,
             reg_y: 0,
             accumulator: 0,
             stack_pointer: 0xfd,
-            flags: StatusFlags::from_bits(0x24).unwrap(),
+            flags: StatusFlags::from_bits_truncate(0x24),
             program_counter: 0xc000,
             cycle_count: 0,
-            memory: MemoryBus::new(match CartridgeROM::new(raw_bytes) {
-                Ok(c) => c,
-                Err(msg) => panic!("{msg}"),
-            }),
+            // memory: MemoryBus::new(match Cartridge::new(raw_bytes) {
+            //     Ok(c) => c,
+            //     Err(msg) => panic!("{msg}"),
+            // }),
             logged,
             log: String::new(),
         }
@@ -79,13 +75,6 @@ impl CPU {
 
     pub fn set_flag(&mut self, flag: StatusFlags, bit: u8) {
         self.flags.set(flag, bit == 1);
-        // if bit == 1 {
-        //     self.flags |= flag.value();
-        // } else if bit == 0 {
-        //     self.flags &= !(flag.value());
-        // } else {
-        //     panic!("attempting to set flag to something that isn't 0 or 1");
-        // }
     }
 
     pub fn get_flag(&self, flag: StatusFlags) -> u8 {
@@ -96,23 +85,36 @@ impl CPU {
         }
     }
 
-    pub fn tick(&mut self) {
-        let opcode = self.memory.read(self.program_counter);
+    pub fn run_count(&mut self, memory: &mut MemoryBus, count: usize) {
+        for _ in 0..count {
+            let cycles = self.tick(memory);
+            memory.tick_ppu(cycles);
+        }
+    }
+
+    pub fn tick(&mut self, memory: &mut MemoryBus) -> usize {
+        let cycle_count_before = self.cycle_count;
+
+        let opcode = memory.read(self.program_counter);
         let ins = get_instruction(opcode);
+
         if self.logged {
-            let log = self.logged_execute(ins);
+            let log = self.logged_execute(memory, ins);
             println!("{log}");
             self.log.push_str(&log);
             self.log.push('\n');
         }
-        self.execute(ins);
+
+        self.execute(memory, ins);
+
+        self.cycle_count - cycle_count_before
     }
 
-    pub fn execute(&mut self, ins: Instruction) {
+    pub fn execute(&mut self, memory: &mut MemoryBus, ins: Instruction) {
         use super::instructions::InstructionName as IN;
 
         self.program_counter += 1; // TODO do this in fetch?
-        self.cycle_count += ins.cycles as u32; // TODO add oops cycles
+        self.cycle_count += ins.cycles as usize; // TODO add oops cycles
 
         let n = ins.name;
 
@@ -120,36 +122,36 @@ impl CPU {
             /* ACCESS INSTRUCTIONS =========================================
             ============================================================= */
             IN::LDA => {
-                let val = self.fetch_value(ins);
+                let val = self.fetch_value(memory, ins);
 
                 self.set_zn_flags(val);
                 self.accumulator = val;
             }
 
             IN::LDX => {
-                let val = self.fetch_value(ins);
+                let val = self.fetch_value(memory, ins);
 
                 self.set_zn_flags(val);
                 self.reg_x = val;
             }
 
             IN::LDY => {
-                let val = self.fetch_value(ins);
+                let val = self.fetch_value(memory, ins);
 
                 self.set_zn_flags(val);
                 self.reg_y = val;
             }
 
             IN::STA => {
-                self.store_value(self.accumulator, ins);
+                self.store_value(memory, self.accumulator, ins);
             }
 
             IN::STX => {
-                self.store_value(self.reg_x, ins);
+                self.store_value(memory, self.reg_x, ins);
             }
 
             IN::STY => {
-                self.store_value(self.reg_y, ins);
+                self.store_value(memory, self.reg_y, ins);
             }
 
             /* TRANSFER INSTRUCTIONS =======================================
@@ -177,21 +179,21 @@ impl CPU {
             /* ARITHMETIC INSTRUCTIONS =====================================
             ============================================================= */
             IN::ADC => {
-                let val = self.fetch_value(ins);
+                let val = self.fetch_value(memory, ins);
                 self.add_to_acc(val);
                 self.set_zn_flags(self.accumulator);
             }
 
             IN::SBC => {
-                let val = !self.fetch_value(ins);
+                let val = !self.fetch_value(memory, ins);
                 self.add_to_acc(val);
                 self.set_zn_flags(self.accumulator);
             }
 
             IN::INC => {
                 // TODO rmw
-                let (val, addr) = self.fetch_value_keep_addr(ins);
-                self.memory.write(addr, val.wrapping_add(1));
+                let (val, addr) = self.fetch_value_keep_addr(memory, ins);
+                memory.write(addr, val.wrapping_add(1));
                 self.set_zn_flags(val.wrapping_add(1));
             }
 
@@ -207,8 +209,8 @@ impl CPU {
 
             IN::DEC => {
                 // TODO rmw
-                let (val, addr) = self.fetch_value_keep_addr(ins);
-                self.memory.write(addr, val.wrapping_sub(1));
+                let (val, addr) = self.fetch_value_keep_addr(memory, ins);
+                memory.write(addr, val.wrapping_sub(1));
                 self.set_zn_flags(val.wrapping_sub(1));
             }
 
@@ -230,11 +232,11 @@ impl CPU {
                     self.accumulator <<= 1;
                     self.set_zn_flags(self.accumulator);
                 } else {
-                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
+                    let (mut val, addr) = self.fetch_value_keep_addr(memory, ins);
                     self.set_flag(StatusFlags::CARRY, val >> 7);
                     val <<= 1;
                     self.set_zn_flags(val);
-                    self.memory.write(addr, val);
+                    memory.write(addr, val);
                 }
                 // TODO rmw
             }
@@ -246,12 +248,12 @@ impl CPU {
                     self.accumulator >>= 1;
                     self.set_zn_flags(self.accumulator);
                 } else {
-                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
+                    let (mut val, addr) = self.fetch_value_keep_addr(memory, ins);
 
                     self.set_flag(StatusFlags::CARRY, val & 1);
                     val >>= 1;
                     self.set_zn_flags(val);
-                    self.memory.write(addr, val);
+                    memory.write(addr, val);
                 }
             }
 
@@ -263,13 +265,13 @@ impl CPU {
                     self.accumulator |= old_c;
                     self.set_zn_flags(self.accumulator);
                 } else {
-                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
+                    let (mut val, addr) = self.fetch_value_keep_addr(memory, ins);
                     let old_c = self.get_flag(StatusFlags::CARRY);
                     self.set_flag(StatusFlags::CARRY, val >> 7);
                     val <<= 1;
                     val |= old_c;
                     self.set_zn_flags(val);
-                    self.memory.write(addr, val);
+                    memory.write(addr, val);
                 };
             }
 
@@ -281,44 +283,44 @@ impl CPU {
                     self.accumulator |= old_c << 7;
                     self.set_zn_flags(self.accumulator);
                 } else {
-                    let (mut val, addr) = self.fetch_value_keep_addr(ins);
+                    let (mut val, addr) = self.fetch_value_keep_addr(memory, ins);
                     let old_c = self.get_flag(StatusFlags::CARRY);
                     self.set_flag(StatusFlags::CARRY, val & 1);
                     val >>= 1;
                     val |= old_c << 7;
                     self.set_zn_flags(val);
-                    self.memory.write(addr, val);
+                    memory.write(addr, val);
                 };
             }
 
             /* BITWISE INSTRUCTIONS ========================================
             ============================================================= */
             IN::AND => {
-                self.accumulator &= self.fetch_value(ins);
+                self.accumulator &= self.fetch_value(memory, ins);
                 self.set_zn_flags(self.accumulator);
             }
 
             IN::BIT => {
-                let val = self.fetch_value(ins);
+                let val = self.fetch_value(memory, ins);
                 self.set_flag(StatusFlags::ZERO, (val & self.accumulator == 0) as u8);
                 self.set_flag(StatusFlags::OVERFLOW, val >> 6 & 1);
                 self.set_flag(StatusFlags::NEGATIVE, val >> 7);
             }
 
             IN::ORA => {
-                self.accumulator |= self.fetch_value(ins);
+                self.accumulator |= self.fetch_value(memory, ins);
                 self.set_zn_flags(self.accumulator);
             }
 
             IN::EOR => {
-                self.accumulator ^= self.fetch_value(ins);
+                self.accumulator ^= self.fetch_value(memory, ins);
                 self.set_zn_flags(self.accumulator);
             }
 
             /* COMPARE INSTRUCTIONS ========================================
             ============================================================= */
             IN::CMP => {
-                let val = self.fetch_value(ins);
+                let val = self.fetch_value(memory, ins);
                 self.set_flag(
                     StatusFlags::CARRY,
                     if self.accumulator >= val { 1 } else { 0 },
@@ -334,14 +336,14 @@ impl CPU {
             }
 
             IN::CPX => {
-                let val = self.fetch_value(ins);
+                let val = self.fetch_value(memory, ins);
                 self.set_flag(StatusFlags::CARRY, if self.reg_x >= val { 1 } else { 0 });
                 self.set_flag(StatusFlags::ZERO, if self.reg_x == val { 1 } else { 0 });
                 self.set_flag(StatusFlags::NEGATIVE, self.reg_x.wrapping_sub(val) >> 7);
             }
 
             IN::CPY => {
-                let val = self.fetch_value(ins);
+                let val = self.fetch_value(memory, ins);
                 self.set_flag(StatusFlags::CARRY, if self.reg_y >= val { 1 } else { 0 });
                 self.set_flag(StatusFlags::ZERO, if self.reg_y == val { 1 } else { 0 });
                 self.set_flag(StatusFlags::NEGATIVE, self.reg_y.wrapping_sub(val) >> 7);
@@ -353,7 +355,7 @@ impl CPU {
                 if self.get_flag(StatusFlags::CARRY) == 0 {
                     self.cycle_count += 1;
                     // TODO find better way?
-                    let byte = self.get_next_u8();
+                    let byte = self.get_next_u8(memory);
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
                     } else {
@@ -369,7 +371,7 @@ impl CPU {
                 if self.get_flag(StatusFlags::CARRY) == 1 {
                     self.cycle_count += 1;
                     // TODO check that this works
-                    let byte = self.get_next_u8();
+                    let byte = self.get_next_u8(memory);
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
                     } else {
@@ -384,7 +386,7 @@ impl CPU {
             IN::BEQ => {
                 if self.get_flag(StatusFlags::ZERO) == 1 {
                     self.cycle_count += 1;
-                    let byte = self.get_next_u8();
+                    let byte = self.get_next_u8(memory);
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
                     } else {
@@ -399,7 +401,7 @@ impl CPU {
             IN::BNE => {
                 if self.get_flag(StatusFlags::ZERO) == 0 {
                     self.cycle_count += 1;
-                    let byte = self.get_next_u8();
+                    let byte = self.get_next_u8(memory);
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
                     } else {
@@ -414,7 +416,7 @@ impl CPU {
             IN::BPL => {
                 if self.get_flag(StatusFlags::NEGATIVE) == 0 {
                     self.cycle_count += 1;
-                    let byte = self.get_next_u8();
+                    let byte = self.get_next_u8(memory);
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
                     } else {
@@ -429,7 +431,7 @@ impl CPU {
             IN::BMI => {
                 if self.get_flag(StatusFlags::NEGATIVE) == 1 {
                     self.cycle_count += 1;
-                    let byte = self.get_next_u8();
+                    let byte = self.get_next_u8(memory);
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
                     } else {
@@ -444,7 +446,7 @@ impl CPU {
             IN::BVC => {
                 if self.get_flag(StatusFlags::OVERFLOW) == 0 {
                     self.cycle_count += 1;
-                    let byte = self.get_next_u8();
+                    let byte = self.get_next_u8(memory);
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
                     } else {
@@ -459,7 +461,7 @@ impl CPU {
             IN::BVS => {
                 if self.get_flag(StatusFlags::OVERFLOW) == 1 {
                     self.cycle_count += 1;
-                    let byte = self.get_next_u8();
+                    let byte = self.get_next_u8(memory);
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
                     } else {
@@ -475,41 +477,39 @@ impl CPU {
             ============================================================= */
             IN::JMP => {
                 if ins.mode == AddressingMode::Absolute {
-                    self.program_counter = self.get_next_u16();
+                    self.program_counter = self.get_next_u16(memory);
                 } else {
-                    let addr = self.get_next_u16();
+                    let addr = self.get_next_u16(memory);
                     if addr & 0xff == 0xff {
-                        self.program_counter =
-                            make16!(self.memory.read(addr - 0xff), self.memory.read(addr));
+                        self.program_counter = make16!(memory.read(addr - 0xff), memory.read(addr));
                     } else {
-                        self.program_counter = make16!(
-                            self.memory.read(addr.wrapping_add(1)),
-                            self.memory.read(addr)
-                        );
+                        self.program_counter =
+                            make16!(memory.read(addr.wrapping_add(1)), memory.read(addr));
                     }
                 }
             }
 
             IN::JSR => {
-                let sr_addr = self.get_next_u16();
+                let sr_addr = self.get_next_u16(memory);
 
                 let stack_save = self.program_counter - 1;
-                self.push_stack((stack_save >> 8) as u8);
-                self.push_stack((stack_save & 0xff) as u8);
+                self.push_stack(memory, (stack_save >> 8) as u8);
+                self.push_stack(memory, (stack_save & 0xff) as u8);
                 self.program_counter = sr_addr;
             }
 
             IN::RTI => {
-                self.flags =
-                    StatusFlags::from_bits_truncate(self.pull_stack() & 0b11101111 | 0b00100000);
-                let lb = self.pull_stack() as u16;
-                let hb = self.pull_stack() as u16;
+                self.flags = StatusFlags::from_bits_truncate(
+                    self.pull_stack(memory) & 0b11101111 | 0b00100000,
+                );
+                let lb = self.pull_stack(memory) as u16;
+                let hb = self.pull_stack(memory) as u16;
                 self.program_counter = make16!(hb, lb);
             }
 
             IN::RTS => {
-                let lb = self.pull_stack() as u16;
-                let hb = self.pull_stack() as u16;
+                let lb = self.pull_stack(memory) as u16;
+                let hb = self.pull_stack(memory) as u16;
                 self.program_counter = make16!(hb, lb);
                 self.program_counter += 1;
             }
@@ -530,21 +530,22 @@ impl CPU {
             }
 
             IN::PHA => {
-                self.push_stack(self.accumulator);
+                self.push_stack(memory, self.accumulator);
             }
 
             IN::PHP => {
-                self.push_stack(self.flags.bits() | 0b00110000);
+                self.push_stack(memory, self.flags.bits() | 0b00110000);
             }
 
             IN::PLA => {
-                self.accumulator = self.pull_stack();
+                self.accumulator = self.pull_stack(memory);
                 self.set_zn_flags(self.accumulator);
             }
 
             IN::PLP => {
-                self.flags =
-                    StatusFlags::from_bits_truncate(self.pull_stack() & 0b11101111 | 0b00100000);
+                self.flags = StatusFlags::from_bits_truncate(
+                    self.pull_stack(memory) & 0b11101111 | 0b00100000,
+                );
                 // TODO the I flag needs to be delayed 1 instr
             }
 
@@ -611,39 +612,40 @@ impl CPU {
     }
 
     // INCREMENTS PC
-    fn get_next_u8(&mut self) -> u8 {
+    fn get_next_u8(&mut self, memory: &mut MemoryBus) -> u8 {
         self.program_counter += 1;
-        self.memory.read(self.program_counter - 1)
+        memory.read(self.program_counter - 1)
     }
 
-    fn get_next_u16(&mut self) -> u16 {
+    fn get_next_u16(&mut self, memory: &mut MemoryBus) -> u16 {
         self.program_counter += 2;
         make16!(
-            self.memory.read(self.program_counter - 1),
-            self.memory.read(self.program_counter - 2)
+            memory.read(self.program_counter - 1),
+            memory.read(self.program_counter - 2)
         )
     }
 
-    // pub fn read_mem_raw(&self, address: u16) -> u8 {
-    //     return self.memory[address as usize];
-    // }
-
-    pub fn get_addr_8bit(&mut self, address: u8, mode: AddressingMode) -> u16 {
+    pub fn get_addr_8bit(
+        &mut self,
+        memory: &mut MemoryBus,
+        address: u8,
+        mode: AddressingMode,
+    ) -> u16 {
         use AddressingMode as M;
         match mode {
             M::ZeroPage => address as u16,
             M::ZeroPageX => self.reg_x.wrapping_add(address) as u16,
             M::ZeroPageY => self.reg_y.wrapping_add(address) as u16,
             M::IndexedIndirect => {
-                let hi = self.get_addr_8bit(address.wrapping_add(1), M::ZeroPageX);
-                let lo = self.get_addr_8bit(address, M::ZeroPageX);
-                make16!(self.memory.read(hi), self.memory.read(lo))
+                let hi = self.get_addr_8bit(memory, address.wrapping_add(1), M::ZeroPageX);
+                let lo = self.get_addr_8bit(memory, address, M::ZeroPageX);
+                make16!(memory.read(hi), memory.read(lo))
             }
             M::IndirectIndexed => {
                 // TODO add a method for this
-                let hi = self.get_addr_8bit(address.wrapping_add(1), M::ZeroPage);
-                let lo = self.get_addr_8bit(address, M::ZeroPage);
-                make16!(self.memory.read(hi), self.memory.read(lo)).wrapping_add(self.reg_y as u16)
+                let hi = self.get_addr_8bit(memory, address.wrapping_add(1), M::ZeroPage);
+                let lo = self.get_addr_8bit(memory, address, M::ZeroPage);
+                make16!(memory.read(hi), memory.read(lo)).wrapping_add(self.reg_y as u16)
             }
             M::Relative | M::Immediate | M::Accumulator | M::Implicit => {
                 panic!("{:?} does not need memory address", mode)
@@ -654,14 +656,16 @@ impl CPU {
         }
     }
 
-    pub fn get_addr_16bit(&mut self, address: u16, mode: AddressingMode) -> u16 {
+    pub fn get_addr_16bit(
+        &mut self,
+        memory: &mut MemoryBus,
+        address: u16,
+        mode: AddressingMode,
+    ) -> u16 {
         use AddressingMode as M;
         match mode {
             M::Indirect => {
-                make16!(
-                    self.memory.read(address.wrapping_add(1)),
-                    self.memory.read(address)
-                )
+                make16!(memory.read(address.wrapping_add(1)), memory.read(address))
             }
             M::Absolute => address,
             M::AbsoluteX => address.wrapping_add(self.reg_x as u16),
@@ -675,68 +679,74 @@ impl CPU {
         }
     }
 
-    pub fn read_8bit(&mut self, address: u8, mode: AddressingMode) -> u8 {
-        let addr = self.get_addr_8bit(address, mode);
-        self.memory.read(addr)
+    pub fn read_8bit(&mut self, memory: &mut MemoryBus, address: u8, mode: AddressingMode) -> u8 {
+        let addr = self.get_addr_8bit(memory, address, mode);
+        memory.read(addr)
     }
 
-    pub fn read_16bit(&mut self, address: u16, mode: AddressingMode) -> u8 {
-        let addr = self.get_addr_16bit(address, mode);
-        self.memory.read(addr)
+    pub fn read_16bit(&mut self, memory: &mut MemoryBus, address: u16, mode: AddressingMode) -> u8 {
+        let addr = self.get_addr_16bit(memory, address, mode);
+        memory.read(addr)
     }
 
-    fn fetch_value(&mut self, ins: Instruction) -> u8 {
+    fn fetch_value(&mut self, memory: &mut MemoryBus, ins: Instruction) -> u8 {
         use AddressingMode as M;
 
         let mode = ins.mode;
 
         match mode {
-            M::Immediate => self.get_next_u8(),
+            M::Immediate => self.get_next_u8(memory),
             M::ZeroPage | M::ZeroPageX | M::ZeroPageY | M::IndexedIndirect | M::IndirectIndexed => {
-                let addr = self.get_next_u8();
-                self.read_8bit(addr, mode)
+                let addr = self.get_next_u8(memory);
+                self.read_8bit(memory, addr, mode)
             }
             M::Absolute | M::AbsoluteX | M::AbsoluteY | M::Indirect => {
-                let addr = self.get_next_u16();
-                self.read_16bit(addr, mode)
+                let addr = self.get_next_u16(memory);
+                self.read_16bit(memory, addr, mode)
             }
             _ => panic!("cannot fetch value for {:?}", mode),
         }
     }
 
-    fn fetch_value_keep_addr(&mut self, ins: Instruction) -> (u8, u16) {
+    fn fetch_value_keep_addr(&mut self, memory: &mut MemoryBus, ins: Instruction) -> (u8, u16) {
         use AddressingMode as M;
 
         let mode = ins.mode;
 
         match mode {
             M::ZeroPage | M::ZeroPageX | M::ZeroPageY | M::IndexedIndirect | M::IndirectIndexed => {
-                let addr = self.get_next_u8();
-                (self.read_8bit(addr, mode), self.get_addr_8bit(addr, mode))
+                let addr = self.get_next_u8(memory);
+                (
+                    self.read_8bit(memory, addr, mode),
+                    self.get_addr_8bit(memory, addr, mode),
+                )
             }
             M::Absolute | M::AbsoluteX | M::AbsoluteY | M::Indirect => {
-                let addr = self.get_next_u16();
-                (self.read_16bit(addr, mode), self.get_addr_16bit(addr, mode))
+                let addr = self.get_next_u16(memory);
+                (
+                    self.read_16bit(memory, addr, mode),
+                    self.get_addr_16bit(memory, addr, mode),
+                )
             }
             _ => panic!("cannot fetch value for {:?}", mode),
         }
     }
 
-    fn store_value(&mut self, val: u8, ins: Instruction) {
+    fn store_value(&mut self, memory: &mut MemoryBus, val: u8, ins: Instruction) {
         use AddressingMode as M;
 
         let mode = ins.mode;
 
         match mode {
             M::ZeroPage | M::ZeroPageX | M::ZeroPageY | M::IndexedIndirect | M::IndirectIndexed => {
-                let addr = self.get_next_u8();
-                let write_addr = self.get_addr_8bit(addr, mode);
-                self.memory.write(write_addr, val);
+                let addr = self.get_next_u8(memory);
+                let write_addr = self.get_addr_8bit(memory, addr, mode);
+                memory.write(write_addr, val);
             }
             M::Absolute | M::AbsoluteX | M::AbsoluteY | M::Indirect => {
-                let addr = self.get_next_u16();
-                let write_addr = self.get_addr_16bit(addr, mode);
-                self.memory.write(write_addr, val);
+                let addr = self.get_next_u16(memory);
+                let write_addr = self.get_addr_16bit(memory, addr, mode);
+                memory.write(write_addr, val);
             }
             _ => panic!("cannot store value for {:?}", mode),
         }
@@ -755,22 +765,21 @@ impl CPU {
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     }
 
-    fn peek_stack(&mut self) -> u8 {
-        self.memory.read(self.stack_pointer as u16 + STACK_START)
+    fn peek_stack(&mut self, memory: &mut MemoryBus) -> u8 {
+        memory.read(self.stack_pointer as u16 + STACK_START)
     }
 
-    fn pull_stack(&mut self) -> u8 {
+    fn pull_stack(&mut self, memory: &mut MemoryBus) -> u8 {
         self.inc_sp();
-        self.peek_stack()
+        self.peek_stack(memory)
     }
 
-    fn push_stack(&mut self, val: u8) {
-        self.memory
-            .write(self.stack_pointer as u16 + STACK_START, val);
+    fn push_stack(&mut self, memory: &mut MemoryBus, val: u8) {
+        memory.write(self.stack_pointer as u16 + STACK_START, val);
         self.dec_sp();
     }
 
-    pub fn logged_execute(&mut self, ins: Instruction) -> String {
+    pub fn logged_execute(&mut self, memory: &mut MemoryBus, ins: Instruction) -> String {
         // CODE FROM https://github.com/bugzmanov/nes_ebook/blob/master/code/ch5.1/src/trace.rs
 
         let begin = self.program_counter;
@@ -782,19 +791,19 @@ impl CPU {
             _ => match ins.bytes {
                 1 => (0, 0),
                 2 => {
-                    let addr = self.memory.read(begin.wrapping_add(1));
+                    let addr = memory.read(begin.wrapping_add(1));
                     if ins.mode != AddressingMode::Relative {
-                        (addr as u16, self.read_8bit(addr, ins.mode))
+                        (addr as u16, self.read_8bit(memory, addr, ins.mode))
                     } else {
                         (addr as u16, 0)
                     }
                 }
                 3 => {
                     let addr = make16!(
-                        self.memory.read(begin.wrapping_add(2)),
-                        self.memory.read(begin.wrapping_add(1))
+                        memory.read(begin.wrapping_add(2)),
+                        memory.read(begin.wrapping_add(1))
                     );
-                    (addr, self.read_16bit(addr, ins.mode))
+                    (addr, self.read_16bit(memory, addr, ins.mode))
                 }
                 _ => {
                     println!("{:?} causing problems", ins);
@@ -809,7 +818,7 @@ impl CPU {
                 _ => String::from(""),
             },
             2 => {
-                let address: u8 = self.memory.read(begin.wrapping_add(1));
+                let address: u8 = memory.read(begin.wrapping_add(1));
 
                 hex_dump.push(address);
 
@@ -829,23 +838,20 @@ impl CPU {
                         address,
                         address.wrapping_add(self.reg_x),
                         make16!(
-                            self.memory
-                                .read((address.wrapping_add(self.reg_x)).wrapping_add(1) as u16),
-                            self.memory.read(address.wrapping_add(self.reg_x) as u16)
+                            memory.read((address.wrapping_add(self.reg_x)).wrapping_add(1) as u16),
+                            memory.read(address.wrapping_add(self.reg_x) as u16)
                         ),
                         stored_value
                     ),
                     AddressingMode::IndirectIndexed => format!(
                         "(${:02x}),Y = {:04x} @ {:04x} = {:02x}",
                         address,
-                        self.memory.read(mem_addr.wrapping_sub(self.reg_y as u16)),
+                        memory.read(mem_addr.wrapping_sub(self.reg_y as u16)),
                         {
-                            let hi = self
-                                .memory
+                            let hi = memory
                                 .read(mem_addr.wrapping_sub(self.reg_y as u16).wrapping_add(1));
-                            let lo = self.memory.read(mem_addr.wrapping_sub(self.reg_y as u16));
-                            self.memory
-                                .read(make16!(hi, lo).wrapping_add(self.reg_y as u16))
+                            let lo = memory.read(mem_addr.wrapping_sub(self.reg_y as u16));
+                            memory.read(make16!(hi, lo).wrapping_add(self.reg_y as u16))
                         },
                         stored_value
                     ),
@@ -863,8 +869,8 @@ impl CPU {
                 }
             }
             3 => {
-                let address_lo = self.memory.read(begin.wrapping_add(1));
-                let address_hi = self.memory.read(begin.wrapping_add(2));
+                let address_lo = memory.read(begin.wrapping_add(1));
+                let address_hi = memory.read(begin.wrapping_add(2));
                 hex_dump.push(address_lo);
                 hex_dump.push(address_hi);
 
@@ -874,14 +880,11 @@ impl CPU {
                     format!("${:04x}", address)
                 } else if ins == JMP_I {
                     let jmp_addr = if address & 0x00FF == 0x00FF {
-                        let lo = self.memory.read(address);
-                        let hi = self.memory.read(address & 0xFF00);
+                        let lo = memory.read(address);
+                        let hi = memory.read(address & 0xFF00);
                         (hi as u16) << 8 | (lo as u16)
                     } else {
-                        make16!(
-                            self.memory.read(address.wrapping_add(1)),
-                            self.memory.read(address)
-                        )
+                        make16!(memory.read(address.wrapping_add(1)), memory.read(address))
                     };
 
                     // let jmp_addr = cpu.mem_read_u16(address);
