@@ -31,12 +31,12 @@ fn test_cld() {
 fn test_cli() {
     // TODO this one is special
     let mut cpu = CPU::new();
-    cpu.set_flag(StatusFlags::INTERRUPT, 1);
+    cpu.set_flag(StatusFlags::INTERRUPT_DISABLE, 1);
     cpu.set_flag(StatusFlags::OVERFLOW, 1);
 
     cpu.execute(IN::CLI);
 
-    assert_eq!(cpu.get_flag(StatusFlags::INTERRUPT), 0);
+    assert_eq!(cpu.get_flag(StatusFlags::INTERRUPT_DISABLE), 0);
     assert_eq!(cpu.get_flag(StatusFlags::OVERFLOW), 1);
 }
 

@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use crate::{
-    memory::{cartridge_rom::Cartridge, memory_bus::InterruptType},
+    memory::{cartridge::Cartridge, memory_bus::InterruptType},
     ppu::ppu_registers::*,
 };
 
@@ -23,6 +23,12 @@ pub struct PPU {
     pub interrupt: Option<InterruptType>,
 }
 
+// pub struct FrameInfoPayload {
+//     pub palette_table: [u8; 32],
+//     pub vram: [u8; 2048],
+//     pub oam_data: [u8; 256],
+// }
+
 impl PPU {
     pub fn new(cart: Cartridge) -> Self {
         PPU {
@@ -36,6 +42,77 @@ impl PPU {
             scanline: 0,
             interrupt: None,
         }
+    }
+
+    pub fn get_frame_pixel_buffer(&self) -> [u8; 256 * 240] {
+        let mut frame = [0; 256 * 240];
+        self.draw_background(&mut frame);
+        frame
+    }
+
+    fn draw_background(&self, frame: &mut [u8; 256 * 240]) {
+        let bank_offset = if self
+            .regs
+            .ctrl
+            .contains(ControlFlags::BACKGROUND_PATTERN_TABLE_ADDR)
+        {
+            0x1000
+        } else {
+            0
+        };
+
+        for tile_index in 0..960 {
+            let pattern_index = self.vram[tile_index] as usize;
+            let tile_x = tile_index % 32;
+            let tile_y = tile_index / 32;
+
+            let tile_offset = bank_offset + (pattern_index * 16);
+            let tile_slice = &self.cart.chr_rom[tile_offset..(tile_offset + 16)];
+
+            let local_chunk_palette = self.get_background_chunk_palette(tile_x, tile_y);
+
+            for pix_y in 0..8 {
+                let color_bit_hi = tile_slice[pix_y];
+                let color_bit_lo = tile_slice[pix_y + 8];
+                for pix_x in 0..8 {
+                    let mask = 1 << (7 - pix_x);
+                    let color_select = ((color_bit_hi & mask) << 1) | (color_bit_lo & mask);
+                    frame[tile_index] = local_chunk_palette[color_select as usize];
+                }
+            }
+        }
+    }
+
+    fn get_background_chunk_palette(&self, tile_x: usize, tile_y: usize) -> [u8; 4] {
+        // chunk layout:
+        // A A | B B
+        // A A | B B
+        // ---------
+        // C C | D D
+        // C C | D D
+
+        // the attrib table has chunks of 4x4 tiles, so find 4x4 block of given coord
+        let attrib_table_index = (tile_x / 4) + (8 * (tile_y / 4));
+        let attrib_byte = self.vram[960 + attrib_table_index];
+
+        // split into 2x2 grid within 4x4 chunk
+        let pallet_index = match ((tile_x % 4) / 2, (tile_y % 4) / 2) {
+            (0, 0) => (attrib_byte >> 0) & 0b11,
+            (1, 0) => (attrib_byte >> 2) & 0b11,
+            (0, 1) => (attrib_byte >> 4) & 0b11,
+            (1, 1) => (attrib_byte >> 6) & 0b11,
+            _ => unreachable!(),
+        };
+
+        // pallette table has weird layout for 13 colours:
+        // [UBG, {0,1,2}, {3,4,5}, {6,7,8}, {9,10,11}]
+        let pallete_start: usize = 1 + (pallet_index as usize) * 4;
+        [
+            self.palette_table[0],
+            self.palette_table[pallete_start],
+            self.palette_table[pallete_start + 1],
+            self.palette_table[pallete_start + 2],
+        ]
     }
 
     pub fn tick(&mut self, cycles: usize) -> bool {

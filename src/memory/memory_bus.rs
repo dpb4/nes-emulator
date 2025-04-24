@@ -108,6 +108,10 @@ impl MemoryBus {
         }
     }
 
+    pub fn get_frame_pixel_buffer(&self) -> [u8; 256 * 240] {
+        self.ppu.get_frame_pixel_buffer()
+    }
+
     pub fn tick_ppu(&mut self, cycles: usize) {
         self.ppu.tick(cycles * 3); // ppu clock cycles are 3x faster than cpu
     }

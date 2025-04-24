@@ -1,2 +1,2 @@
-pub mod cartridge_rom;
+pub mod cartridge;
 pub mod memory_bus;

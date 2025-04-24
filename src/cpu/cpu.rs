@@ -2,10 +2,7 @@
 
 use crate::{
     make16,
-    memory::{
-        self,
-        memory_bus::{InterruptType::NonMaskable, MemoryBus},
-    },
+    memory::memory_bus::{InterruptType::NonMaskable, MemoryBus},
 };
 
 use super::instructions::{get_instruction, AddressingMode, Instruction, JMP_A, JMP_I, JSR_A};
@@ -22,7 +19,7 @@ bitflags! {
     pub struct StatusFlags: u8 {
         const CARRY = 0b00000001;
         const ZERO  = 0b00000010;
-        const INTERRUPT = 0b00000100;
+        const INTERRUPT_DISABLE = 0b00000100;
         const DECIMAL = 0b00001000;
         const BREAK = 0b00010000;
         const BREAK2_U = 0b00100000;
@@ -46,21 +43,6 @@ pub struct CPU {
 }
 
 impl CPU {
-    // pub fn new() -> Self {
-    //     Self {
-    //         reg_x: 0,
-    //         reg_y: 0,
-    //         accumulator: 0,
-    //         stack_pointer: 255,
-    //         flags: StatusFlags::empty(),
-    //         program_counter: 0,
-    //         cycle_count: 0,
-    //         // memory: MemoryBus::new(Cartridge::dummy()),
-    //         logged: false,
-    //         log: String::new(),
-    //     }
-    // }
-
     pub fn new_program(logged: bool) -> Self {
         Self {
             reg_x: 0,
@@ -88,13 +70,17 @@ impl CPU {
         }
     }
 
+    pub fn run_once(&mut self, memory: &mut MemoryBus) {
+        if let Some(NonMaskable) = memory.poll_interrupt() {
+            self.interrupt_nmi(memory);
+        }
+        let cycles = self.tick(memory);
+        memory.tick_ppu(cycles);
+    }
+
     pub fn run_count(&mut self, memory: &mut MemoryBus, count: usize) {
         for _ in 0..count {
-            if let Some(NonMaskable) = memory.poll_interrupt() {
-                self.interrupt_nmi(memory);
-            }
-            let cycles = self.tick(memory);
-            memory.tick_ppu(cycles);
+            self.run_once(memory);
         }
     }
 
@@ -119,7 +105,7 @@ impl CPU {
     pub fn execute(&mut self, memory: &mut MemoryBus, ins: Instruction) {
         use super::instructions::InstructionName as IN;
 
-        self.program_counter += 1; // TODO do this in fetch?
+        self.program_counter = self.program_counter.wrapping_add(1); // TODO do this in fetch?
         self.cycle_count += ins.cycles as usize; // TODO add oops cycles
 
         let n = ins.name;
@@ -376,7 +362,6 @@ impl CPU {
             IN::BCS => {
                 if self.get_flag(StatusFlags::CARRY) == 1 {
                     self.cycle_count += 1;
-                    // TODO check that this works
                     let byte = self.get_next_u8(memory);
                     let branch = if byte & 0b10000000 != 0 {
                         -(((!byte).wrapping_add(1)) as i32)
@@ -515,7 +500,8 @@ impl CPU {
             }
 
             IN::BRK => {
-                todo!("havent implemented BRK yet");
+                return;
+                // todo!("havent implemented BRK yet");
             }
 
             /* STACK INSTRUCTIONS ==========================================
@@ -561,7 +547,7 @@ impl CPU {
 
             IN::CLI => {
                 // TODO this needs to be delayed by 1 instruction
-                self.set_flag(StatusFlags::INTERRUPT, 0);
+                self.set_flag(StatusFlags::INTERRUPT_DISABLE, 0);
             }
 
             IN::CLV => {
@@ -577,7 +563,7 @@ impl CPU {
             }
 
             IN::SEI => {
-                self.set_flag(StatusFlags::INTERRUPT, 1);
+                self.set_flag(StatusFlags::INTERRUPT_DISABLE, 1);
             }
 
             /* OTHER INSTRUCTIONS ==========================================
@@ -797,7 +783,7 @@ impl CPU {
         new_flags.insert(StatusFlags::BREAK2_U);
 
         self.stack_push(memory, new_flags.bits());
-        self.flags.insert(StatusFlags::INTERRUPT);
+        self.flags.insert(StatusFlags::INTERRUPT_DISABLE);
 
         memory.tick_ppu(2);
         self.program_counter = memory.read_16bit(0xFFFA); //TODO make this a constant

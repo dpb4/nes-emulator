@@ -7,7 +7,7 @@ fn test_setting() {
 
     cpu.set_flag(StatusFlags::CARRY, 1);
     cpu.set_flag(StatusFlags::DECIMAL, 1);
-    cpu.set_flag(StatusFlags::INTERRUPT, 1);
+    cpu.set_flag(StatusFlags::INTERRUPT_DISABLE, 1);
     cpu.set_flag(StatusFlags::NEGATIVE, 1);
     cpu.set_flag(StatusFlags::OVERFLOW, 1);
     cpu.set_flag(StatusFlags::ZERO, 1);
@@ -31,11 +31,11 @@ fn test_getting() {
     assert_eq!(cpu.flags.bits(), 0b00000010);
     cpu.set_flag(StatusFlags::ZERO, 0);
 
-    assert_eq!(cpu.get_flag(StatusFlags::INTERRUPT), 0);
-    cpu.set_flag(StatusFlags::INTERRUPT, 1);
-    assert_eq!(cpu.get_flag(StatusFlags::INTERRUPT), 1);
+    assert_eq!(cpu.get_flag(StatusFlags::INTERRUPT_DISABLE), 0);
+    cpu.set_flag(StatusFlags::INTERRUPT_DISABLE, 1);
+    assert_eq!(cpu.get_flag(StatusFlags::INTERRUPT_DISABLE), 1);
     assert_eq!(cpu.flags.bits(), 0b00000100);
-    cpu.set_flag(StatusFlags::INTERRUPT, 0);
+    cpu.set_flag(StatusFlags::INTERRUPT_DISABLE, 0);
 
     assert_eq!(cpu.get_flag(StatusFlags::DECIMAL), 0);
     cpu.set_flag(StatusFlags::DECIMAL, 1);

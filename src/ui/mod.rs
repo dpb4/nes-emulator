@@ -1,4 +1,17 @@
+use crate::InputType;
+
 pub mod frame;
+pub mod macro_system;
+
+pub trait Renderer {
+    fn draw_frame(&mut self, frame_buffer: [u8; 256 * 240], palette: SysPal);
+}
+
+pub trait Controller {
+    fn poll_input(&self) -> Option<InputType>;
+}
+
+type SysPal = [(u8, u8, u8); 64];
 
 #[rustfmt::skip]
 pub static PALETTE_NTSC: [(u8,u8,u8); 64] = [
