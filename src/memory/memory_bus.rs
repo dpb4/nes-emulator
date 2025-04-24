@@ -1,4 +1,4 @@
-use crate::ppu::PPU;
+use crate::{make16, ppu::PPU};
 
 pub const RAM_START: u16 = 0x0000;
 pub const RAM_END_MIRRORED: u16 = 0x1fff;
@@ -66,6 +66,10 @@ impl MemoryBus {
         }
     }
 
+    pub fn read_16bit(&mut self, addr: u16) -> u16 {
+        make16!(self.read(addr + 1), self.read(addr))
+    }
+
     pub fn write(&mut self, addr: u16, val: u8) {
         match addr {
             RAM_START..=RAM_END_MIRRORED => {
@@ -110,5 +114,13 @@ impl MemoryBus {
 
     pub fn poll_interrupt(&self) -> Option<InterruptType> {
         self.ppu.interrupt
+    }
+
+    pub fn get_ppu_cycles(&self) -> usize {
+        self.ppu.cycle_count
+    }
+
+    pub fn get_ppu_scanline(&self) -> u16 {
+        self.ppu.scanline
     }
 }

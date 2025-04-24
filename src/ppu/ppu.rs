@@ -32,7 +32,7 @@ impl PPU {
             palette_table: [0; 32],
             regs: Registers::new(),
             internal_data_buf: 0,
-            cycle_count: 0,
+            cycle_count: 21,
             scanline: 0,
             interrupt: None,
         }
@@ -45,11 +45,17 @@ impl PPU {
             self.scanline += 1;
 
             if self.scanline == 241 && self.regs.ctrl.contains(ControlFlags::VBLANK_NMI_ENABLE) {
-                todo!("trigger nmi")
+                self.regs.stat.insert(StatusFlags::VBLANK);
+                self.regs.stat.remove(StatusFlags::SPRITE_0_HIT);
+                if self.regs.ctrl.contains(ControlFlags::VBLANK_NMI_ENABLE) {
+                    self.interrupt = Some(InterruptType::NonMaskable);
+                }
             }
 
             if self.scanline >= 262 {
                 self.scanline = 0;
+                self.interrupt = None;
+                self.regs.stat.remove(StatusFlags::SPRITE_0_HIT);
                 self.regs.stat.remove(StatusFlags::VBLANK);
                 return true;
             }
@@ -67,7 +73,7 @@ impl PPU {
         self.regs.ctrl = ControlFlags::from_bits_truncate(val);
         let nmi_status_after = self.regs.ctrl.contains(ControlFlags::VBLANK_NMI_ENABLE);
         if !nmi_status_before && nmi_status_after && self.regs.stat.contains(StatusFlags::VBLANK) {
-            todo!() // TODO trigger nmi interrupt
+            self.interrupt = Some(InterruptType::NonMaskable);
         }
     }
 

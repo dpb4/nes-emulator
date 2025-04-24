@@ -1,6 +1,7 @@
 pub mod cpu;
 pub mod memory;
 pub mod ppu;
+pub mod ui;
 
 use std::{fs::File, io::Write};
 
@@ -46,7 +47,7 @@ pub fn start(raw_bytes: Vec<u8>) {
     //     c.memory.tick_ppu(cycles);
     // }
 
-    let mut log_file = File::create("logs/cpu.log").unwrap();
+    let mut log_file = File::create("logs/cpu_complete.log").unwrap();
 
     let _ = log_file.write_all(n.cpu.log.as_bytes());
 

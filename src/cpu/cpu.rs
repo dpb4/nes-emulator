@@ -1,6 +1,12 @@
 #![allow(non_snake_case)]
 
-use crate::{make16, memory::memory_bus::MemoryBus};
+use crate::{
+    make16,
+    memory::{
+        self,
+        memory_bus::{InterruptType::NonMaskable, MemoryBus},
+    },
+};
 
 use super::instructions::{get_instruction, AddressingMode, Instruction, JMP_A, JMP_I, JSR_A};
 
@@ -12,14 +18,14 @@ use bitflags::bitflags;
 const STACK_START: u16 = 0x100;
 
 bitflags! {
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub struct StatusFlags: u8 {
         const CARRY = 0b00000001;
         const ZERO  = 0b00000010;
         const INTERRUPT = 0b00000100;
         const DECIMAL = 0b00001000;
         const BREAK = 0b00010000;
-        const U = 0b00100000;
+        const BREAK2_U = 0b00100000;
         const OVERFLOW = 0b01000000;
         const NEGATIVE = 0b10000000;
     }
@@ -63,11 +69,8 @@ impl CPU {
             stack_pointer: 0xfd,
             flags: StatusFlags::from_bits_truncate(0x24),
             program_counter: 0xc000,
-            cycle_count: 0,
-            // memory: MemoryBus::new(match Cartridge::new(raw_bytes) {
-            //     Ok(c) => c,
-            //     Err(msg) => panic!("{msg}"),
-            // }),
+            cycle_count: 7,
+            // TODO FIX THIS !!!!!!!! cycles should start at 0, logging is 1 instr behind (fix ppu too)
             logged,
             log: String::new(),
         }
@@ -87,6 +90,9 @@ impl CPU {
 
     pub fn run_count(&mut self, memory: &mut MemoryBus, count: usize) {
         for _ in 0..count {
+            if let Some(NonMaskable) = memory.poll_interrupt() {
+                self.interrupt_nmi(memory);
+            }
             let cycles = self.tick(memory);
             memory.tick_ppu(cycles);
         }
@@ -492,25 +498,19 @@ impl CPU {
             IN::JSR => {
                 let sr_addr = self.get_next_u16(memory);
 
-                let stack_save = self.program_counter - 1;
-                self.push_stack(memory, (stack_save >> 8) as u8);
-                self.push_stack(memory, (stack_save & 0xff) as u8);
+                self.stack_push_16bit(memory, self.program_counter - 1);
                 self.program_counter = sr_addr;
             }
 
             IN::RTI => {
                 self.flags = StatusFlags::from_bits_truncate(
-                    self.pull_stack(memory) & 0b11101111 | 0b00100000,
+                    self.stack_pull(memory) & 0b11101111 | 0b00100000,
                 );
-                let lb = self.pull_stack(memory) as u16;
-                let hb = self.pull_stack(memory) as u16;
-                self.program_counter = make16!(hb, lb);
+                self.program_counter = self.stack_pull_16bit(memory);
             }
 
             IN::RTS => {
-                let lb = self.pull_stack(memory) as u16;
-                let hb = self.pull_stack(memory) as u16;
-                self.program_counter = make16!(hb, lb);
+                self.program_counter = self.stack_pull_16bit(memory);
                 self.program_counter += 1;
             }
 
@@ -530,21 +530,21 @@ impl CPU {
             }
 
             IN::PHA => {
-                self.push_stack(memory, self.accumulator);
+                self.stack_push(memory, self.accumulator);
             }
 
             IN::PHP => {
-                self.push_stack(memory, self.flags.bits() | 0b00110000);
+                self.stack_push(memory, self.flags.bits() | 0b00110000);
             }
 
             IN::PLA => {
-                self.accumulator = self.pull_stack(memory);
+                self.accumulator = self.stack_pull(memory);
                 self.set_zn_flags(self.accumulator);
             }
 
             IN::PLP => {
                 self.flags = StatusFlags::from_bits_truncate(
-                    self.pull_stack(memory) & 0b11101111 | 0b00100000,
+                    self.stack_pull(memory) & 0b11101111 | 0b00100000,
                 );
                 // TODO the I flag needs to be delayed 1 instr
             }
@@ -765,18 +765,42 @@ impl CPU {
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     }
 
-    fn peek_stack(&mut self, memory: &mut MemoryBus) -> u8 {
+    fn stack_peek(&mut self, memory: &mut MemoryBus) -> u8 {
         memory.read(self.stack_pointer as u16 + STACK_START)
     }
 
-    fn pull_stack(&mut self, memory: &mut MemoryBus) -> u8 {
+    fn stack_pull(&mut self, memory: &mut MemoryBus) -> u8 {
         self.inc_sp();
-        self.peek_stack(memory)
+        self.stack_peek(memory)
     }
 
-    fn push_stack(&mut self, memory: &mut MemoryBus, val: u8) {
+    fn stack_push(&mut self, memory: &mut MemoryBus, val: u8) {
         memory.write(self.stack_pointer as u16 + STACK_START, val);
         self.dec_sp();
+    }
+
+    fn stack_push_16bit(&mut self, memory: &mut MemoryBus, val: u16) {
+        self.stack_push(memory, (val >> 8) as u8);
+        self.stack_push(memory, (val & 0xff) as u8);
+    }
+
+    fn stack_pull_16bit(&mut self, memory: &mut MemoryBus) -> u16 {
+        let lo = self.stack_pull(memory);
+        let hi = self.stack_pull(memory);
+        make16!(hi, lo)
+    }
+
+    fn interrupt_nmi(&mut self, memory: &mut MemoryBus) {
+        self.stack_push_16bit(memory, self.program_counter);
+        let mut new_flags = self.flags;
+        new_flags.remove(StatusFlags::BREAK);
+        new_flags.insert(StatusFlags::BREAK2_U);
+
+        self.stack_push(memory, new_flags.bits());
+        self.flags.insert(StatusFlags::INTERRUPT);
+
+        memory.tick_ppu(2);
+        self.program_counter = memory.read_16bit(0xFFFA); //TODO make this a constant
     }
 
     pub fn logged_execute(&mut self, memory: &mut MemoryBus, ins: Instruction) -> String {
@@ -925,8 +949,16 @@ impl CPU {
             .to_string();
 
         format!(
-            "{:47} A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x}",
-            asm_str, self.accumulator, self.reg_x, self.reg_y, self.flags, self.stack_pointer,
+            "{:47} A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x} PPU:{: >3},{: >3} CYC:{}",
+            asm_str,
+            self.accumulator,
+            self.reg_x,
+            self.reg_y,
+            self.flags,
+            self.stack_pointer,
+            memory.get_ppu_scanline(),
+            memory.get_ppu_cycles(),
+            self.cycle_count
         )
         .to_ascii_uppercase()
     }
