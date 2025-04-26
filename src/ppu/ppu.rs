@@ -47,6 +47,7 @@ impl PPU {
     pub fn get_frame_pixel_buffer(&self) -> [u8; 256 * 240] {
         let mut frame = [0; 256 * 240];
         self.draw_background(&mut frame);
+        // println!("{:?}", frame);
         frame
     }
 
@@ -71,13 +72,16 @@ impl PPU {
 
             let local_chunk_palette = self.get_background_chunk_palette(tile_x, tile_y);
 
-            for pix_y in 0..8 {
-                let color_bit_hi = tile_slice[pix_y];
-                let color_bit_lo = tile_slice[pix_y + 8];
-                for pix_x in 0..8 {
-                    let mask = 1 << (7 - pix_x);
-                    let color_select = ((color_bit_hi & mask) << 1) | (color_bit_lo & mask);
-                    frame[tile_index] = local_chunk_palette[color_select as usize];
+            for local_pix_y in 0..8 {
+                let color_bit_hi = tile_slice[local_pix_y];
+                let color_bit_lo = tile_slice[local_pix_y + 8];
+                for local_pix_x in 0..8 {
+                    let bit = 7 - local_pix_x;
+                    let color_select =
+                        (((color_bit_hi >> bit) & 1) << 1) | ((color_bit_lo >> bit) & 1);
+                    let pix_x = tile_x * 8 + local_pix_x;
+                    let pix_y = tile_y * 8 + local_pix_y;
+                    frame[pix_x + 256 * pix_y] = local_chunk_palette[color_select as usize];
                 }
             }
         }
@@ -121,12 +125,13 @@ impl PPU {
             self.cycle_count -= 341;
             self.scanline += 1;
 
-            if self.scanline == 241 && self.regs.ctrl.contains(ControlFlags::VBLANK_NMI_ENABLE) {
+            if self.scanline == 241 {
                 self.regs.stat.insert(StatusFlags::VBLANK);
                 self.regs.stat.remove(StatusFlags::SPRITE_0_HIT);
                 if self.regs.ctrl.contains(ControlFlags::VBLANK_NMI_ENABLE) {
                     self.interrupt = Some(InterruptType::NonMaskable);
                 }
+                println!("PPU palette table: {:?}", self.palette_table);
             }
 
             if self.scanline >= 262 {
@@ -220,6 +225,9 @@ impl PPU {
 
     pub fn read_status(&mut self) -> u8 {
         let data = self.regs.stat.bits();
+        // if data & 0b10000000 != 0 {
+        //     println!("STATUS IS NEGATIVE!!!\n\n\n");
+        // }
         self.regs.stat.remove(StatusFlags::VBLANK);
         self.regs.ppu_addr.reset_latch();
         self.regs.scrl.reset_latch();

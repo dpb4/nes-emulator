@@ -20,12 +20,12 @@ impl MacroSystem {
             internal_texture: tex,
         }
     }
-    pub fn draw_frame(&mut self, frame_buffer: [u8; 256 * 240], palette: &SysPal) {
+    pub fn draw_new_frame(&mut self, frame_buffer: [u8; 256 * 240], palette: &SysPal) {
         let mut pixels = Vec::with_capacity(256 * 240);
 
         for y in 0..240 {
             for x in 0..256 {
-                let col = palette[frame_buffer[x + (y * 240)] as usize];
+                let col = palette[frame_buffer[x + (y * 256)] as usize];
                 pixels.push(col.0);
                 pixels.push(col.1);
                 pixels.push(col.2);
@@ -34,13 +34,26 @@ impl MacroSystem {
         }
 
         self.internal_texture = Texture2D::from_rgba8(256, 240, &pixels);
+        self.internal_texture.set_filter(FilterMode::Nearest);
         draw_texture_ex(
             &self.internal_texture,
             0.,
             0.,
             WHITE,
             DrawTextureParams {
-                dest_size: Some(Vec2::new(256. * 2., 240. * 2.)),
+                dest_size: Some(Vec2::new(256. * 3., 240. * 3.)),
+                ..Default::default()
+            },
+        );
+    }
+    pub fn redraw(&self) {
+        draw_texture_ex(
+            &self.internal_texture,
+            0.,
+            0.,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(Vec2::new(256. * 3., 240. * 3.)),
                 ..Default::default()
             },
         );

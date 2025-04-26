@@ -34,10 +34,10 @@ pub struct NESSystem {
 
 impl NESSystem {
     pub fn new(raw_bytes: Vec<u8>) -> Result<Self, &'static str> {
-        Ok(NESSystem {
-            cpu: CPU::new_program(false),
-            mem_bus: MemoryBus::new(PPU::new(Cartridge::new(raw_bytes)?)),
-        })
+        let mut cpu = CPU::new_program(false);
+        let mut mem_bus = MemoryBus::new(PPU::new(Cartridge::new(raw_bytes)?));
+        cpu.reset(&mut mem_bus);
+        Ok(NESSystem { cpu, mem_bus })
     }
 
     pub fn get_frame_pixel_buffer(&self) -> [u8; 256 * 240] {
@@ -57,6 +57,16 @@ impl NESSystem {
         while self.cpu.cycle_count - starting_cycles < 29781 {
             self.cpu.run_once(&mut self.mem_bus);
         }
+    }
+
+    pub fn save_log(&self) {
+        let mut log_file = File::create(format!(
+            "logs/ran_{}.log",
+            Utc::now().format("%Y-%m-%d_%H-%M-%S")
+        ))
+        .unwrap();
+
+        let _ = log_file.write_all(self.cpu.log.as_bytes());
     }
 }
 

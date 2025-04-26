@@ -45,7 +45,8 @@ impl MemoryBus {
             }
             PPU_REG_START..=PPU_REG_END_MIRRORED => match addr {
                 0x2000 | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
-                    panic!("cannot read from write only PPU address 0x{:x}", addr);
+                    // panic!("cannot read from write only PPU address 0x{:x}", addr);
+                    return 0;
                 }
                 0x2002 => self.ppu.read_status(),
                 0x2004 => self.ppu.read_oam_data(),
@@ -61,9 +62,47 @@ impl MemoryBus {
                 self.ppu.cart.prg_rom[prg_addr as usize]
             }
             _ => {
-                panic!("bad memory read at 0x{:x}", addr);
+                // println!("WARNING: BAD READ at 0x{:x}", addr);
+                0
+                // panic!("bad memory read at 0x{:x}", addr);
             }
         }
+    }
+
+    pub fn dbg_read(&self, addr: u16) -> u8 {
+        match addr {
+            RAM_START..=RAM_END_MIRRORED => {
+                let truncated_addr = addr & RAM_ADDR_MASK;
+                self.cpu_ram[truncated_addr as usize]
+            }
+            PPU_REG_START..=PPU_REG_END_MIRRORED => match addr {
+                0x2000 | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
+                    // panic!("cannot read from write only PPU address 0x{:x}", addr);
+                    return 0;
+                }
+                0x2002 => self.ppu.regs.stat.bits(),
+                0x2004 => self.ppu.regs.oam_data,
+                0x2007 => self.ppu.regs.ppu_data,
+
+                _ => self.dbg_read(addr & PPU_REG_ADDR_MASK),
+            },
+            PRG_ROM_START..=PRG_ROM_END_MIRRORED => {
+                let mut prg_addr = addr - PRG_ROM_START;
+                if self.ppu.cart.prg_rom.len() == 0x4000 && prg_addr >= 0x4000 {
+                    prg_addr %= 0x4000;
+                }
+                self.ppu.cart.prg_rom[prg_addr as usize]
+            }
+            _ => {
+                // println!("WARNING: BAD READ at 0x{:x}", addr);
+                0
+                // panic!("bad memory read at 0x{:x}", addr);
+            }
+        }
+    }
+
+    pub fn dbg_read_16bit(&self, addr: u16) -> u16 {
+        make16!(self.dbg_read(addr + 1), self.dbg_read(addr))
     }
 
     pub fn read_16bit(&mut self, addr: u16) -> u16 {
@@ -103,7 +142,9 @@ impl MemoryBus {
                 );
             }
             _ => {
-                panic!("bad memory write at 0x{:x} (val {val})", addr);
+                // println!("WARNING: BAD WRITE at 0x{:x} (val {val})", addr);
+
+                // panic!("bad memory write at 0x{:x} (val {val})", addr);
             }
         }
     }

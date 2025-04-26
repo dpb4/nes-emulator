@@ -523,7 +523,7 @@ pub const fn get_instruction(opcode: u8) -> Instruction {
         0x8a => TXA,
         0x9a => TXS,
         0x98 => TYA,
-        _ => NOP,
-        // _ => panic!("bad opcode"),
+        // _ => NOP,
+        _ => panic!("bad opcode"),
     }
 }
