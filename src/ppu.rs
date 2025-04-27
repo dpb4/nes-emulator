@@ -5,6 +5,9 @@ use crate::{
     ppu::ppu_registers::*,
 };
 
+// pub mod ppu;
+pub mod ppu_registers;
+
 #[derive(Debug)]
 pub struct PPU {
     pub palette_table: [u8; 32],

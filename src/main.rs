@@ -59,6 +59,11 @@ async fn main() {
         // nes_emu.save_log();
     });
 
+    // let a = Some("a".to_owned());
+
+    // a.inspect(|l| {
+    //     l.log_event(LogEvent::MemoryRead(10, 20));
+    // });
     // for _ in 0..4 {
     //     count += 1;
     //     println!("frame {count}");

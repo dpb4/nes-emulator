@@ -1,4 +1,4 @@
-use crate::{make16, ppu::PPU};
+use crate::{make_u16, ppu::PPU};
 
 pub const RAM_START: u16 = 0x0000;
 pub const RAM_END_MIRRORED: u16 = 0x1fff;
@@ -102,11 +102,11 @@ impl MemoryBus {
     }
 
     pub fn dbg_read_16bit(&self, addr: u16) -> u16 {
-        make16!(self.dbg_read(addr + 1), self.dbg_read(addr))
+        make_u16!(self.dbg_read(addr + 1), self.dbg_read(addr))
     }
 
     pub fn read_16bit(&mut self, addr: u16) -> u16 {
-        make16!(self.read(addr + 1), self.read(addr))
+        make_u16!(self.read(addr + 1), self.read(addr))
     }
 
     pub fn write(&mut self, addr: u16, val: u8) {

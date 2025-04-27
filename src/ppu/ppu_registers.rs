@@ -1,6 +1,6 @@
 use bitflags::bitflags;
 
-use crate::make16;
+use crate::make_u16;
 
 #[derive(Debug)]
 pub struct Registers {
@@ -82,7 +82,7 @@ impl PPUAddressRegister {
     }
 
     pub fn get_addr(&self) -> u16 {
-        make16!(self.value.0, self.value.1)
+        make_u16!(self.value.0, self.value.1)
     }
 }
 
