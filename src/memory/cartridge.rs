@@ -14,7 +14,7 @@ pub struct Cartridge {
 
 impl Cartridge {
     pub fn new(raw_bytes: Vec<u8>) -> Result<Cartridge, &'static str> {
-        if &raw_bytes[0..4] != NES_TAG {
+        if raw_bytes[0..4] != NES_TAG {
             return Err("file format is not iNES 1.0 (missing NES tag)");
         }
 
@@ -44,8 +44,8 @@ impl Cartridge {
         Ok(Cartridge {
             prg_rom: raw_bytes[prg_rom_start..(prg_rom_start + prg_rom_size)].to_vec(),
             chr_rom: raw_bytes[chr_rom_start..(chr_rom_start + chr_rom_size)].to_vec(),
-            mapper: mapper,
-            screen_mirroring: screen_mirroring,
+            mapper,
+            screen_mirroring,
         })
     }
 

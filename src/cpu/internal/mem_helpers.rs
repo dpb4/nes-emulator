@@ -3,8 +3,9 @@ use crate::{
         instructions::{AddressingMode, Instruction},
         CPU,
     },
-    make_u16,
+    make_u16, LogEvent,
 };
+use LogEvent as LE;
 
 impl CPU {
     // INCREMENTS PC
@@ -16,7 +17,13 @@ impl CPU {
     // INCREMENTS PC
     pub fn mem_read_pc_u16(&mut self) -> u16 {
         self.program_counter += 2;
-        self.mem_bus.read_16bit(self.program_counter - 2)
+        let operand = self.mem_bus.read_16bit(self.program_counter - 2);
+        
+        if let Some(l) = self.logger.as_mut() {
+            l.log_event(LE::OperandFetch(operand));
+        }
+
+        operand
         // make16!(
         //     self.mem_bus.read(self.program_counter - 1),
         //     self.mem_bus.read(self.program_counter - 2)

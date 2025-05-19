@@ -1,4 +1,4 @@
-use crate::{make_u16, ppu::PPU};
+use crate::{make_u16, ppu::PPU, HEIGHT, WIDTH};
 
 pub const RAM_START: u16 = 0x0000;
 pub const RAM_END_MIRRORED: u16 = 0x1fff;
@@ -21,6 +21,18 @@ pub const PRG_ROM_END_MIRRORED: u16 = 0xffff;
 pub struct MemoryBus {
     cpu_ram: [u8; 0x800],
     ppu: PPU,
+}
+
+pub trait Bus<MemoryMapper, PPU> {
+    fn new(ppu: PPU);
+    fn read(&mut self, addr: u16) -> u8;
+    fn write(&mut self, addr: u16, val: u8);
+
+    fn get_frame_pixel_buffer(&self) -> [u8; WIDTH * HEIGHT];
+    fn tick_ppu(&mut self, cycles: usize);
+    fn poll_interrupt(&self) -> Option<InterruptType>;
+    fn get_ppu_cycles(&self) -> usize;
+    fn get_ppu_scanline(&self) -> u16;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -149,10 +161,13 @@ impl MemoryBus {
         }
     }
 
-    pub fn get_frame_pixel_buffer(&self) -> [u8; 256 * 240] {
-        self.ppu.get_frame_pixel_buffer()
-    }
+    // pub fn get_frame_pixel_buffer(&self) -> [u8; WIDTH * HEIGHT] {
+    //     self.ppu.get_frame_pixel_buffer()
+    // }
 
+    pub fn render(&self, target: &mut [u8; WIDTH * HEIGHT]) {
+        self.ppu.draw_to_buffer(target);
+    }
     pub fn tick_ppu(&mut self, cycles: usize) {
         self.ppu.tick(cycles * 3); // ppu clock cycles are 3x faster than cpu
     }

@@ -3,11 +3,14 @@
 use crate::{
     make_u16,
     memory::memory_bus::{InterruptType::NonMaskable, MemoryBus},
+    LogEvent, Logger,
 };
 
 pub mod instructions;
 pub use instructions as ins;
+
 use instructions::{get_instruction, AddressingMode, Instruction, JMP_A, JMP_I, JSR_A};
+use LogEvent as LE;
 
 use bitflags::bitflags;
 
@@ -45,10 +48,23 @@ pub struct CPU {
     pub mem_bus: MemoryBus,
     logged: bool,
     pub log: String,
+
+    pub logger: Option<Box<dyn Logger>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CPUStateLog {
+    pub reg_x: u8,
+    pub reg_y: u8,
+    pub accumulator: u8,
+    pub stack_pointer: u8,
+    pub flags: u8,
+    pub program_counter: u16,
+    pub cycle_count: usize,
 }
 
 impl CPU {
-    pub fn new_program(logged: bool, mem_bus: MemoryBus) -> Self {
+    pub fn new_program(logged: bool, mem_bus: MemoryBus, logger: Option<Box<dyn Logger>>) -> Self {
         Self {
             reg_x: 0,
             reg_y: 0,
@@ -56,11 +72,12 @@ impl CPU {
             stack_pointer: 0xfd,
             flags: StatusFlags::from_bits_truncate(0x24),
             program_counter: 0,
+            // TODO FIX THIS !!!!!!!! cycles should start at 0, logging is 1 instr behind (fix ppu too)
             cycle_count: 7,
             mem_bus,
-            // TODO FIX THIS !!!!!!!! cycles should start at 0, logging is 1 instr behind (fix ppu too)
             logged,
             log: String::new(),
+            logger,
         }
     }
 
@@ -101,6 +118,10 @@ impl CPU {
     }
 
     fn interrupt_nmi(&mut self) {
+        if let Some(l) = self.logger.as_mut() {
+            l.log_event(LE::NMIInterupt);
+        }
+
         self.stack_push_u16(self.program_counter);
         let mut new_flags = self.flags;
         new_flags.remove(StatusFlags::BREAK);
@@ -514,7 +535,6 @@ impl CPU {
 
             IN::BRK => {
                 //TODO
-                return;
                 // todo!("havent implemented BRK yet");
             }
 

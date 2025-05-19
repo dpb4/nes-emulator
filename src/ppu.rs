@@ -3,6 +3,7 @@
 use crate::{
     memory::{cartridge::Cartridge, memory_bus::InterruptType},
     ppu::ppu_registers::*,
+    HEIGHT, WIDTH,
 };
 
 // pub mod ppu;
@@ -26,12 +27,6 @@ pub struct PPU {
     pub interrupt: Option<InterruptType>,
 }
 
-// pub struct FrameInfoPayload {
-//     pub palette_table: [u8; 32],
-//     pub vram: [u8; 2048],
-//     pub oam_data: [u8; 256],
-// }
-
 impl PPU {
     pub fn new(cart: Cartridge) -> Self {
         PPU {
@@ -47,14 +42,18 @@ impl PPU {
         }
     }
 
-    pub fn get_frame_pixel_buffer(&self) -> [u8; 256 * 240] {
-        let mut frame = [0; 256 * 240];
-        self.draw_background(&mut frame);
-        // println!("{:?}", frame);
-        frame
+    pub fn draw_to_buffer(&self, target: &mut [u8; WIDTH * HEIGHT]) {
+        self.draw_background(target);
     }
 
-    fn draw_background(&self, frame: &mut [u8; 256 * 240]) {
+    // pub fn get_frame_pixel_buffer(&self) -> [u8; WIDTH * HEIGHT] {
+    //     let mut frame = [0; WIDTH * HEIGHT];
+    //     self.draw_background(&mut frame);
+    //     // println!("{:?}", frame);
+    //     frame
+    // }
+
+    fn draw_background(&self, frame: &mut [u8; WIDTH * HEIGHT]) {
         let bank_offset = if self
             .regs
             .ctrl
@@ -84,7 +83,7 @@ impl PPU {
                         (((color_bit_hi >> bit) & 1) << 1) | ((color_bit_lo >> bit) & 1);
                     let pix_x = tile_x * 8 + local_pix_x;
                     let pix_y = tile_y * 8 + local_pix_y;
-                    frame[pix_x + 256 * pix_y] = local_chunk_palette[color_select as usize];
+                    frame[pix_x + WIDTH * pix_y] = local_chunk_palette[color_select as usize];
                 }
             }
         }
@@ -134,7 +133,7 @@ impl PPU {
                 if self.regs.ctrl.contains(ControlFlags::VBLANK_NMI_ENABLE) {
                     self.interrupt = Some(InterruptType::NonMaskable);
                 }
-                println!("PPU palette table: {:?}", self.palette_table);
+                // println!("PPU palette table: {:?}", self.palette_table);
             }
 
             if self.scanline >= 262 {

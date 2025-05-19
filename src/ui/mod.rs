@@ -1,17 +1,20 @@
-use crate::InputType;
+// use frame::{Frame, PaletteFrame};
+
+use crate::{InputType, HEIGHT, WIDTH};
 
 pub mod frame;
-pub mod macro_system;
+pub mod pixels_renderer;
 
 pub trait Renderer {
-    fn draw_frame(&mut self, frame_buffer: [u8; 256 * 240], palette: SysPal);
+    fn draw_to(&self, buf: &mut [u8]);
+    fn modify_buffer<T: FnOnce(&mut [u8; WIDTH * HEIGHT])>(&mut self, f: T);
 }
 
 pub trait Controller {
     fn poll_input(&self) -> Option<InputType>;
 }
 
-type SysPal = [(u8, u8, u8); 64];
+type NESSystemPalette = [(u8, u8, u8); 64];
 
 #[rustfmt::skip]
 pub static PALETTE_NTSC: [(u8,u8,u8); 64] = [

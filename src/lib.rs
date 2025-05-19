@@ -16,6 +16,9 @@ macro_rules! make_u16 {
     };
 }
 
+pub const WIDTH: usize = 256;
+pub const HEIGHT: usize = 240;
+
 pub enum InputType {
     A,
     B,
@@ -34,13 +37,17 @@ pub struct NESSystem {
 impl NESSystem {
     pub fn new(raw_bytes: Vec<u8>) -> Result<Self, &'static str> {
         let mem_bus = MemoryBus::new(PPU::new(Cartridge::new(raw_bytes)?));
-        let mut cpu = CPU::new_program(false, mem_bus);
+        let mut cpu = CPU::new_program(false, mem_bus, None);
         cpu.reset();
         Ok(NESSystem { cpu })
     }
 
-    pub fn get_frame_pixel_buffer(&self) -> [u8; 256 * 240] {
-        self.cpu.mem_bus.get_frame_pixel_buffer()
+    // pub fn get_frame_pixel_buffer(&self) -> [u8; WIDTH * HEIGHT] {
+    //     self.cpu.mem_bus.get_frame_pixel_buffer()
+    // }
+
+    pub fn render(&self, target: &mut [u8; WIDTH * HEIGHT]) {
+        self.cpu.mem_bus.render(target);
     }
 
     pub fn tick_once(&mut self) {
@@ -71,15 +78,18 @@ impl NESSystem {
 
 pub enum LogEvent {
     InstructionFetch(Instruction),
-    OperandFetch(u8),
+    BadOpcode(u8),
+    OperandFetch(u16),
     MemoryReadIntermediate(u16, u8),
     MemoryRead(u16, u8),
     MemoryWrite(u8, u16),
     StackPush(u8),
     StackPull(u8),
     NMIInterupt,
+    StateUpdate(cpu::CPUStateLog),
 }
-pub trait Logger {
-    fn log_event();
-    fn log_state();
+
+pub trait Logger: std::fmt::Debug + Send {
+    fn log_event(&mut self, le: LogEvent);
+    fn log_state(&mut self);
 }
